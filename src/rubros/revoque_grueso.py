@@ -7,13 +7,10 @@ from math import ceil
 from pydantic import BaseModel, Field, PositiveFloat
 
 from src.datos.loader import (
-    DatosEmpresa,
     cargar_empresa,
     precio_mano_obra,
     precio_material,
-    rendimiento,
 )
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -35,19 +32,19 @@ class CalcRevoqueGrueso:
         datos = cargar_empresa(empresa_id)
         m3_mortero = _q(Decimal(str(params.superficie_m2))) * Decimal(str(params.espesor_cm)) / Decimal("100")
 
-        cant_cemento = ceil(m3_mortero / Decimal("0.035"))
+        supm2 = Decimal(str(params.superficie_m2))
+        cant_cemento = Decimal(ceil(m3_mortero / Decimal("0.035")))
         cant_arena = _q(m3_mortero * Decimal("3"))
-        cant_plast = max(1, ceil(Decimal(str(params.superficie_m2)) / Decimal("30")))
-        costo_mo = precio_mano_obra(datos, "REVOQUE_GRUESO") * Decimal(str(params.superficie_m2))
+        cant_plast = Decimal(max(1, ceil(supm2 / Decimal("30"))))
+        p_mo = precio_mano_obra(datos, "REVOQUE_GRUESO")
+        costo_mo = p_mo * supm2
 
         partidas = [
             Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
             Partida(concepto="Arena gruesa", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), subtotal=cant_arena * precio_material(datos, "ARENA_GRUESA"), categoria="material"),
             Partida(concepto="Plastificante Hercal", cantidad=cant_plast, unidad="u", precio_unitario=precio_material(datos, "PLASTIFICANTE_HERCAL"), subtotal=cant_plast * precio_material(datos, "PLASTIFICANTE_HERCAL"), categoria="material"),
-            Partida(concepto="MO revoque grueso", cantidad=params.superficie_m2, unidad="m2", precio_unitario=costo_mo / Decimal(str(params.superficie_m2)), subtotal=costo_mo, categoria="mano_obra"),
+            Partida(concepto="MO revoque grueso", cantidad=supm2, unidad="m2", precio_unitario=p_mo, subtotal=costo_mo, categoria="mano_obra"),
         ]
-
-        materiales_faltantes(partidas, datos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))

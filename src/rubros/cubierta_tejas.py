@@ -7,13 +7,10 @@ from math import ceil, sqrt
 from pydantic import BaseModel, Field, PositiveFloat
 
 from src.datos.loader import (
-    DatosEmpresa,
     cargar_empresa,
     precio_mano_obra,
     precio_material,
-    rendimiento,
 )
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -46,24 +43,26 @@ class CalcCubiertaTejas:
     def calcular(params: ParamsCubiertaTejas, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
         
-        factor = sqrt(1 + (Decimal(str(params.pendiente_pct)) / Decimal("100")) ** 2)
-        m2_real = _q(Decimal(str(params.ancho))) * _q(Decimal(str(params.largo))) * factor
+        pct = float(params.pendiente_pct) / 100.0
+        factor = Decimal(str(sqrt(1 + pct ** 2)))
+        ancho = Decimal(str(params.ancho))
+        largo = Decimal(str(params.largo))
+        m2_real = _q(ancho * largo * factor)
 
         cod_teja = CODIGO_TEJA.get(params.tipo_teja, "TEJA_CERAMICA_COL")
-        
-        cant_tejas = ceil(m2_real * TEJAS_POR_M2.get(params.tipo_teja, Decimal("16")) * Decimal("110") / Decimal("100"))
-        cant_listones = ceil(m2_real * Decimal("1.2"))
-        cant_cumbreras = ceil(_q(Decimal(str(params.largo))) / Decimal("0.30"))
-        costo_mo = precio_mano_obra(datos, "CUBIERTA_TEJAS") * m2_real
+        tejas_m2 = TEJAS_POR_M2.get(params.tipo_teja, Decimal("16"))
+        cant_tejas = Decimal(ceil(m2_real * tejas_m2 * Decimal("1.10")))
+        cant_listones = Decimal(ceil(m2_real * Decimal("1.2")))
+        cant_cumbreras = Decimal(ceil(largo / Decimal("0.30")))
+        p_mo = precio_mano_obra(datos, "CUBIERTA_TEJAS")
+        costo_mo = p_mo * m2_real
 
         partidas = [
             Partida(concepto=f"Teja {params.tipo_teja}", cantidad=cant_tejas, unidad="u", precio_unitario=precio_material(datos, cod_teja), subtotal=cant_tejas * precio_material(datos, cod_teja), categoria="material"),
             Partida(concepto="Listón madera", cantidad=cant_listones, unidad="u", precio_unitario=precio_material(datos, "LISTON_MADERA_2X3"), subtotal=cant_listones * precio_material(datos, "LISTON_MADERA_2X3"), categoria="material"),
             Partida(concepto="Cumbrera cerámica", cantidad=cant_cumbreras, unidad="u", precio_unitario=precio_material(datos, "CUMBRERA_CERAMICA"), subtotal=cant_cumbreras * precio_material(datos, "CUMBRERA_CERAMICA"), categoria="material"),
-            Partida(concepto="MO cubierta tejas", cantidad=float(m2_real), unidad="m2", precio_unitario=costo_mo / m2_real, subtotal=costo_mo, categoria="mano_obra"),
+            Partida(concepto="MO cubierta tejas", cantidad=m2_real, unidad="m2", precio_unitario=p_mo, subtotal=costo_mo, categoria="mano_obra"),
         ]
-
-        materiales_faltantes(partidas, datos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))

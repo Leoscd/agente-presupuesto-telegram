@@ -13,7 +13,6 @@ from src.datos.loader import (
     precio_material,
     rendimiento,
 )
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -90,7 +89,6 @@ class CalcRevestimientoBanio:
             partidas.extend(_partidas_superficie(params.superficie_pared_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Pared", datos))
         if params.incluye_alzada_cocina and params.superficie_alzada_m2 > 0:
             partidas.extend(_partidas_superficie(params.superficie_alzada_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Alzada", datos))
-        materiales_faltantes(partidas, datos)
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
         sub_mo = sum((p.subtotal for p in partidas if p.categoria == "mano_obra"), Decimal("0"))
