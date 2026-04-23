@@ -4,6 +4,14 @@ from __future__ import annotations
 from src.rubros.base import REGISTRY, Calculadora, Partida, ResultadoPresupuesto, registrar
 
 # Importaciones con side-effect: cada módulo se auto-registra en REGISTRY.
-from src.rubros import techo_chapa  # noqa: F401,E402
+from src.rubros import (  # noqa: F401
+    techo_chapa,
+    cubierta_tejas,
+    mamposteria,
+    losa,
+    contrapiso,
+    revoque_grueso,
+    revestimiento_banio,
+)
 
 __all__ = ["REGISTRY", "Calculadora", "Partida", "ResultadoPresupuesto", "registrar"]

@@ -12,10 +12,20 @@ LADRILLO_COMUN,Ladrillo común,u,180.00,2026-04-23
 LADRILLO_HUECO_12,Ladrillo hueco 12cm,u,520.00,2026-04-23
 LADRILLO_HUECO_18,Ladrillo hueco 18cm,u,780.00,2026-04-23
 CEMENTO_PORTLAND,Cemento portland bolsa 50kg,u,12500.00,2026-04-23
-CAL_HIDRAULICA,Cal hidráulica bolsa 25kg,u,4200.00,2026-04-23
+PLASTIFICANTE_HERCAL,Plastificante Hercal/Plasticor bidon 20L,u,18500.00,u,4200.00,2026-04-23
 ARENA_GRUESA,Arena gruesa m3,m3,38000.00,2026-04-23
 ARENA_FINA,Arena fina m3,m3,42000.00,2026-04-23
 HIERRO_8,Hierro nervado 8mm barra 12m,u,9500.00,2026-04-23
 HIERRO_10,Hierro nervado 10mm barra 12m,u,14800.00,2026-04-23
 HIERRO_12,Hierro nervado 12mm barra 12m,u,21200.00,2026-04-23
 PIEDRA_6_12,Piedra partida 6-12mm m3,m3,45000.00,2026-04-23
+TEJA_CERAMICA_COL,Teja cerámica colonial,u,850.00,2026-04-23
+TEJA_CEMENTO,Teja de cemento,u,620.00,2026-04-23
+LISTON_MADERA_2X3,Listón de madera 2x3" x 3m,u,4800.00,2026-04-23
+CUMBRERA_CERAMICA,Cumbrera cerámica,u,1200.00,2026-04-23
+PORCELANATO_60X60,Porcelanato rectificado 60x60 standard,m2,22500.00,2026-04-23
+PORCELANATO_60X60_PREMIUM,Porcelanato rectificado 60x60 premium,m2,38000.00,2026-04-23
+CERAMICO_PARED_25X35,Cerámico pared 25x35 esmaltado,m2,14500.00,2026-04-23
+ADHESIVO_PORCELANATO,Adhesivo flexible para porcelanato bolsa 25kg,u,12500.00,2026-04-23
+JUNTA_PORCELANATO,Pastina/junta porcelanato kg,u,1800.00,2026-04-23
+ADHESIVO_CERAMICO,Adhesivo cerámico bolsa 25kg,u,8500.00,2026-04-23

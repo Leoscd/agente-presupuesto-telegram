@@ -13,7 +13,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 
 from src.config import settings
-from src.orquestador.prompts import SYSTEM_PROMPT, build_user_message
+from src.orquestador.prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_CATEGORIA, build_user_message
 from src.persistencia import db
 
 log = logging.getLogger(__name__)
@@ -53,9 +53,34 @@ def _estimar_usd(tin: int, tout: int) -> float:
     return round(tin / 1_000_000 * USD_PER_1M_INPUT + tout / 1_000_000 * USD_PER_1M_OUTPUT, 6)
 
 
-async def parsear(texto_usuario: str, materiales_disponibles: list[str]) -> RespuestaOrq:
+async def clasificar_categoria(texto: str) -> tuple[str, float]:
+    """Clasifica el pedido en una categoría para filtrar acciones."""
     t0 = time.perf_counter()
-    user_msg = build_user_message(texto_usuario, materiales_disponibles)
+    try:
+        resp: ChatCompletion = await _cliente().chat.completions.create(
+            model=settings.minimax_model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT_CATEGORIA},
+                {"role": "user", "content": texto},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=100,
+        )
+        latencia_ms = int((time.perf_counter() - t0) * 1000)
+        content = resp.choices[0].message.content or "{}"
+        raw = json.loads(content)
+        categoria = str(raw.get("categoria", ""))
+        confianza = float(raw.get("confianza", 0.0))
+        return categoria, confianza
+    except Exception as e:
+        log.warning("Error clasificando categoría: %s", e)
+        return "", 0.0
+
+
+async def parsear(texto_usuario: str, materiales_disponibles: list[str], acciones_filtradas: list[str] | None = None) -> RespuestaOrq:
+    t0 = time.perf_counter()
+    user_msg = build_user_message(texto_usuario, materiales_disponibles, acciones_filtradas)
 
     resp: ChatCompletion = await _cliente().chat.completions.create(
         model=settings.minimax_model,

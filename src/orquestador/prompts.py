@@ -4,6 +4,15 @@ from __future__ import annotations
 import json
 
 
+SYSTEM_PROMPT_CATEGORIA = """Clasificá el pedido en UNA de estas categorías:
+- cubiertas: techos de chapa, tejas, membrana, losa de cubierta
+- obra_gruesa: mampostería, losa entre pisos, contrapiso, encadenados
+- terminaciones: revoques, pisos, cerámicos, porcelanato, revestimientos
+- instalaciones: electricidad, sanitaria, gas
+
+Devolvé SOLO JSON: {"categoria": "<nombre>", "confianza": <0.0-1.0>}"""
+
+
 SYSTEM_PROMPT = """Sos el parser NLU de un bot de presupuestos de obra para arquitectos.
 
 Tu ÚNICA tarea es convertir pedidos en español a un JSON estructurado. NO calculás, NO cotizás, NO opinás sobre precios. El sistema hace los cálculos en Python determinístico.
@@ -46,10 +55,11 @@ SALIDA: {"accion":"aclaracion","parametros":{"pregunta":"¿Qué dimensiones tien
 """
 
 
-def build_user_message(texto_usuario: str, materiales_disponibles: list[str]) -> str:
+def build_user_message(texto_usuario: str, materiales_disponibles: list[str], acciones_filtradas: list[str] | None = None) -> str:
     """Mensaje del usuario con contexto minimal de la empresa."""
     ctx = {"materiales_disponibles": materiales_disponibles}
-    return (
-        f"Contexto empresa:\n{json.dumps(ctx, ensure_ascii=False)}\n\n"
-        f"Pedido del arquitecto:\n{texto_usuario.strip()}"
-    )
+    msg = f"Contexto empresa:\n{json.dumps(ctx, ensure_ascii=False)}\n\n"
+    msg += f"Pedido del arquitecto:\n{texto_usuario.strip()}"
+    if acciones_filtradas:
+        msg += f"\n\nAcciones disponibles en este contexto: {acciones_filtradas}"
+    return msg
