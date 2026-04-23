@@ -1,3 +1,31 @@
+# ESTADO DE TAREA - Fase 2
+
+## ✅ COMPLETADO
+
+- **Corrección cal → plastificante Hercal**: CSVs y JSONs actualizados
+- **Tarea 1 - Two-stage routing**: categorias.py, prompts.py, minimax_client.py, router.py
+- **Tarea 2 - Mampostería**: src/rubros/mamposteria.py + tests/golden (pendiente)
+- **Tarea 3 - Losa**: src/rubros/losa.py + tests/golden (pendiente)
+- **Tarea 4 - Contrapiso**: src/rubros/contrapiso.py + tests/golden (pendiente)
+- **Tarea 5 - Revoque Grueso**: src/rubros/revoque_grueso.py + tests/golden (pendiente)
+- **Tarea 6 - Cubierta de Tejas**: src/rubros/cubierta_tejas.py + tests/golden (pendiente)
+- **Tarea 7 - Revestimiento Baño/Cocina**: src/rubros/revestimiento_banio.py + tests/golden (pendiente)
+- **Tarea 8 - Registry**: __init__.py + prompts actualizados
+
+## ⚠️ PENDIENTE / FALLA
+
+- **Tests**: Faltan crear test_mamposteria.py, test_losa.py, etc.
+- **Golden cases**: Faltan agregar a tests/golden/casos.yaml
+- **Precios mano de obra**: Agregar al CSV (MAMPOSTERIA_*, CUBIERTA_TEJAS, etc.)
+
+## 📋 NOTAS
+
+- Registry carga: ['techo_chapa', 'cubierta_tejas', 'mamposteria', 'losa', 'contrapiso', 'revoque_grueso', 'revestimiento_banio']
+- Syntax errors corregidos en todos los archivos
+- Pattern de clase (Calc*) implementado
+
+---
+
 # Tareas para el agente de código — Fase 2
 
 > **Leer primero:** El patrón de implementación de rubros está en `src/rubros/techo_chapa.py`.
