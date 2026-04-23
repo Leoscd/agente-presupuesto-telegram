@@ -1,0 +1,53 @@
+# Golden dataset — presupuestos reales contra los que se compara la calculadora.
+# Cargar casos históricos del arquitecto. Más es mejor (apuntar a 20-50).
+#
+# Umbrales por defecto: ±2% en total, ±5% por partida (ver scripts/correr_golden.py).
+
+- id: techo_001
+  descripcion: "techo chapa galvanizada 7x10 con perfil C100 — caso testigo"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: techo_chapa
+  parametros:
+    ancho: 7
+    largo: 10
+    tipo_chapa: galvanizada_075
+    tipo_perfil: C100
+  esperado:
+    total: 1374380.00
+    partidas_clave:
+      - concepto_contiene: "galvanizada"
+        subtotal: 654500.00
+      - concepto_contiene: "C 100"
+        subtotal: 388080.00
+
+- id: techo_002
+  descripcion: "techo chapa zinc 5x4 con perfil C60"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: techo_chapa
+  parametros:
+    ancho: 5
+    largo: 4
+    tipo_chapa: zinc_075
+    tipo_perfil: C60
+  esperado:
+    # m2=20; chapa=20*1.10=22*9800=215600; perfil=(ceil(4/1)+1)=5 correas*5m=25*1.05=26.25ml*3200=84000;
+    # tornillos=20*12=240*45=10800; mo=20*4200=84000
+    # total = 215600 + 84000 + 10800 + 84000 = 394400
+    total: 394400.00
+
+- id: techo_003
+  descripcion: "cobertizo 3x3 chapa color prepintada con C60"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: techo_chapa
+  parametros:
+    ancho: 3
+    largo: 3
+    tipo_chapa: color_075
+    tipo_perfil: C60
+  esperado:
+    # m2=9; chapa=9*1.10=9.90*11200=110880; perfil=(ceil(3/1)+1)=4*3m=12*1.05=12.60ml*3200=40320;
+    # tornillos=9*12=108*45=4860; mo=9*4200=37800; total=110880+40320+4860+37800=193860
+    total: 193860.00

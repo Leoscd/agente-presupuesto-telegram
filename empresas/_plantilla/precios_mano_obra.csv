@@ -1,0 +1,10 @@
+tarea,descripcion,unidad,precio,equipo_minimo
+TECHO_CHAPA,Colocación de chapa con perfilería,m2,4200.00,2
+MAMPOSTERIA_HUECO_12,Mampostería ladrillo hueco 12cm,m2,8500.00,2
+MAMPOSTERIA_HUECO_18,Mampostería ladrillo hueco 18cm,m2,11200.00,2
+MAMPOSTERIA_COMUN,Mampostería ladrillo común,m2,9800.00,2
+LOSA_HORMIGON,Losa de hormigón armado H21,m2,28500.00,3
+REVOQUE_GRUESO,Revoque grueso interior,m2,3200.00,2
+REVOQUE_FINO,Revoque fino interior,m2,2800.00,2
+CONTRAPISO,Contrapiso de hormigón,m2,4500.00,2
+PISO_CERAMICO,Colocación piso cerámico,m2,6800.00,2

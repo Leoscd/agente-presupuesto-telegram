@@ -1,0 +1,10 @@
+{
+  "nombre": "Estudio Ramos",
+  "moneda": "ARS",
+  "activo": true,
+  "max_edad_precios_dias": 30,
+  "cuit": "30-12345678-9",
+  "direccion": "Av. Siempre Viva 742, CABA",
+  "telefono": "+54 11 5555-1234",
+  "email": "contacto@estudioramos.ar"
+}

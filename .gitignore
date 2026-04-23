@@ -1,0 +1,21 @@
+.env
+.venv/
+.claude/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+data/
+*.sqlite
+*.sqlite-*
+.DS_Store
+.vscode/
+.idea/
+# PDFs generados en runtime
+tmp/
+out/

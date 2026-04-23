@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Presupuesto {{ id_corto }} — {{ empresa.nombre }}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hdr">
+    <div class="hdr-left">
+      <div class="estudio">{{ empresa.nombre }}</div>
+      {% if empresa.direccion %}<div class="meta">{{ empresa.direccion }}</div>{% endif %}
+      {% if empresa.telefono %}<div class="meta">{{ empresa.telefono }}</div>{% endif %}
+      {% if empresa.email %}<div class="meta">{{ empresa.email }}</div>{% endif %}
+      {% if empresa.cuit %}<div class="meta">CUIT: {{ empresa.cuit }}</div>{% endif %}
+    </div>
+    <div class="hdr-right">
+      <div class="doc-title">PRESUPUESTO</div>
+      <div class="doc-meta"><span>N°</span> {{ id_corto | upper }}</div>
+      <div class="doc-meta"><span>Fecha</span> {{ fecha }}</div>
+      <div class="doc-meta"><span>Cliente</span> {{ cliente }}</div>
+    </div>
+  </header>
+
+  <section class="resumen">
+    <div class="rubro-titulo">{{ resultado.rubro }}</div>
+    {% if resultado.metadata %}
+      <div class="meta-list">
+        {% for k, v in resultado.metadata.items() %}
+          <span class="meta-chip"><b>{{ k }}:</b> {{ v }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <table class="partidas">
+    <thead>
+      <tr>
+        <th class="col-concepto">Concepto</th>
+        <th class="col-cant">Cantidad</th>
+        <th class="col-unidad">Unidad</th>
+        <th class="col-pu">P. unitario</th>
+        <th class="col-sub">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set grupos = {'material': 'Materiales', 'mano_obra': 'Mano de obra', 'equipo': 'Equipos'} %}
+      {% for cat, titulo in grupos.items() %}
+        {% set partidas_cat = resultado.partidas | selectattr('categoria', 'equalto', cat) | list %}
+        {% if partidas_cat %}
+          <tr class="cat-row"><td colspan="5">{{ titulo }}</td></tr>
+          {% for p in partidas_cat %}
+          <tr>
+            <td>{{ p.concepto }}</td>
+            <td class="num">{{ p.cantidad }}</td>
+            <td>{{ p.unidad }}</td>
+            <td class="num">{{ p.precio_unitario | moneda }}</td>
+            <td class="num">{{ p.subtotal | moneda }}</td>
+          </tr>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="4">Subtotal materiales</td><td class="num">{{ resultado.subtotal_materiales | moneda }}</td></tr>
+      <tr><td colspan="4">Subtotal mano de obra</td><td class="num">{{ resultado.subtotal_mano_obra | moneda }}</td></tr>
+      <tr class="total"><td colspan="4">TOTAL</td><td class="num">{{ resultado.total | moneda }}</td></tr>
+    </tfoot>
+  </table>
+
+  {% if resultado.advertencias %}
+  <section class="advertencias">
+    <div class="adv-titulo">Observaciones</div>
+    <ul>
+      {% for a in resultado.advertencias %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <footer class="ftr">
+    <div>Presupuesto válido por 15 días desde la fecha de emisión.</div>
+    <div>Los precios pueden variar por actualización de insumos.</div>
+  </footer>
+</body>
+</html>

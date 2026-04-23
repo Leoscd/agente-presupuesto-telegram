@@ -1,0 +1,10 @@
+{
+  "nombre": "NOMBRE_DEL_ESTUDIO",
+  "moneda": "ARS",
+  "activo": true,
+  "max_edad_precios_dias": 30,
+  "cuit": "",
+  "direccion": "",
+  "telefono": "",
+  "email": ""
+}
