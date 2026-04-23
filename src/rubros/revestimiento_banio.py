@@ -1,14 +1,10 @@
-"""Rubro: Revestimiento de baño/cocina.
-
-Maneja piso y paredes con materiales distintos (opcionalmente).
-Opciones: solo piso, solo paredes, ambos, o con alzada de cocina.
-"""
+"""Rubro: Revestimiento de baño/cocina."""
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 from math import ceil
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from src.datos.loader import (
     DatosEmpresa,
@@ -50,111 +46,62 @@ CODIGO_ADHESIVO = {
     "ceramico_30x30": "ADHESIVO_CERAMICO",
     "ceramico_45x45": "ADHESIVO_CERAMICO",
 }
-ADHESIVO_M2_POR_BOLSA = Decimal("4")  # cerámico
+ADHESIVO_M2_POR_BOLSA = Decimal("4")
 ADHESIVO_PORCELANATO_M2_POR_BOLSA = Decimal("3")
 JUNTA_M2_POR_KG = Decimal("3")
 
 
-def _q(v) -> Decimal:
+def _q(v: Decimal) -> Decimal:
     return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def _partidas_superficie(
-    sup_m2: float,
-    material_key: str,
-    tarea_mo: str,
-    descripcion: str,
-    datos: DatosEmpresa,
-) -> list[Partida]:
-    """Genera partidas para una superficie dada."""
+def _partidas_superficie(sup_m2: float, material_key: str, tarea_mo: str, desc: str, datos: DatosEmpresa):
     if sup_m2 <= 0:
         return []
-    
     sup = Decimal(str(sup_m2))
     cod_mat = CODIGO_MATERIAL.get(material_key, "PORCELANATO_60X60")
     cod_adh = CODIGO_ADHESIVO.get(material_key, "ADHESIVO_CERAMICO")
-    
-    # Calcular cantidades
+    es_porc = "porcelanato" in material_key
+    m2_por_bolsa = ADHESIVO_PORCELANATO_M2_POR_BOLSA if es_porc else ADHESIVO_M2_POR_BOLSA
+    cant_adh = ceil(sup / m2_por_bolsa)
+    cant_junta = ceil(sup / JUNTA_M2_POR_KG)
     rend_mat = rendimiento(datos, cod_mat, Decimal("1.10"))
     cant_mat = _q(sup * rend_mat)
-    
-    # adhesivo
-    es_porcelanato = "porcelanato" in material_key
-    m2_por_bolsa = ADHESIVO_PORCELANATO_M2_POR_BOLSA if es_porcelanato else ADHESIVO_M2_POR_BOLSA
-    cant_adh = ceil(sup / m2_por_bolsa)
-    
-    # pastina
-    cant_junta = ceil(sup / JUNTA_M2_POR_KG)
-    
-    # mano de obra
     costo_mo = precio_mano_obra(datos, tarea_mo) * sup
-    
-    partidas = [
-        Partida(concepto=descripcion + " material", cantidad=cant_mat, unidad="m2", 
-              precio_unitario=precio_material(datos, cod_mat), categoria="material"),
-        Partida(concepto="Adhesivo " + material_key, cantidad=cant_adh, unidad="u", 
-              precio_unitario=precio_material(datos, cod_adh), categoria="material"),
-        Partida(concepto="Junta/pastina", cantidad=cant_junta, unidad="kg", 
-              precio_unitario=precio_material(datos, "JUNTA_PORCELANATO"), categoria="material"),
-        Partida(concepto="Mano de obra " + descripcion, cantidad=sup_m2, unidad="m2", 
-              precio_unitario=costo_mo / sup, categoria="mano_obra"),
+    return [
+        Partida(concepto=desc + " material", cantidad=cant_mat, unidad="m2", precio_unitario=precio_material(datos, cod_mat), subtotal=cant_mat * precio_material(datos, cod_mat), categoria="material"),
+        Partida(concepto="Adhesivo", cantidad=cant_adh, unidad="u", precio_unitario=precio_material(datos, cod_adh), subtotal=cant_adh * precio_material(datos, cod_adh), categoria="material"),
+        Partida(concepto="Junta/pastina", cantidad=cant_junta, unidad="kg", precio_unitario=precio_material(datos, "JUNTA_PORCELANATO"), subtotal=cant_junta * precio_material(datos, "JUNTA_PORCELANATO"), categoria="material"),
+        Partida(concepto="MO " + desc, cantidad=sup_m2, unidad="m2", precio_unitario=costo_mo / sup, subtotal=costo_mo, categoria="mano_obra"),
     ]
-    return partidas
 
 
-def calcular(params: ParamsRevestimientoBanio, empresa_id: str) -> ResultadoPresupuesto:
-    datos = cargar_empresa(empresa_id)
-    partidas = []
+class CalcRevestimientoBanio:
+    accion = "revestimiento_banio"
+    schema_params = ParamsRevestimientoBanio
 
-    # Piso
-    if params.superficie_piso_m2 > 0:
-        piso_partidas = _partidas_superficie(
-            params.superficie_piso_m2,
-            params.material_piso,
-            "PISO_CERAMICO",
-            "Piso",
-            datos,
+    @staticmethod
+    def calcular(params: ParamsRevestimientoBanio, empresa_id: str) -> ResultadoPresupuesto:
+        datos = cargar_empresa(empresa_id)
+        partidas = []
+        if params.superficie_piso_m2 > 0:
+            partidas.extend(_partidas_superficie(params.superficie_piso_m2, params.material_piso, "PISO_CERAMICO", "Piso", datos))
+        if params.superficie_pared_m2 > 0:
+            partidas.extend(_partidas_superficie(params.superficie_pared_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Pared", datos))
+        if params.incluye_alzada_cocina and params.superficie_alzada_m2 > 0:
+            partidas.extend(_partidas_superficie(params.superficie_alzada_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Alzada", datos))
+        materiales_faltantes(partidas, datos)
+        total = sum((p.subtotal for p in partidas), Decimal("0"))
+        sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
+        sub_mo = sum((p.subtotal for p in partidas if p.categoria == "mano_obra"), Decimal("0"))
+        return ResultadoPresupuesto(
+            rubro="revestimiento_banio",
+            partidas=partidas,
+            subtotal_materiales=sub_mat,
+            subtotal_mano_obra=sub_mo,
+            total=total,
+            metadata={"superficie_piso_m2": params.superficie_piso_m2, "superficie_pared_m2": params.superficie_pared_m2},
         )
-        partidas.extend(piso_partidas)
-
-    # Paredes
-    if params.superficie_pared_m2 > 0:
-        pared_partidas = _partidas_superficie(
-            params.superficie_pared_m2,
-            params.material_pared,
-            "REVESTIMIENTO_CERAMICO",
-            "Pared",
-            datos,
-        )
-        partidas.extend(pared_partidas)
-
-    # Alzada cocina
-    if params.incluye_alzada_cocina and params.superficie_alzada_m2 > 0:
-        alzada_partidas = _partidas_superficie(
-            params.superficie_alzada_m2,
-            params.material_pared,
-            "REVESTIMIENTO_CERAMICO",
-            "Alzada cocina",
-            datos,
-        )
-        partidas.extend(alzada_partidas)
-
-    materiales_faltantes(partidas, datos)
-
-    resultado = ResultadoPresupuesto(
-        accion="revestimiento_banio",
-        parametros=params.model_dump(),
-        partidas=partidas,
-        metadata={
-            "superficie_piso_m2": params.superficie_piso_m2,
-            "superficie_pared_m2": params.superficie_pared_m2,
-            "material_piso": params.material_piso,
-            "material_pared": params.material_pared,
-            "incluye_alzada_cocina": params.incluye_alzada_cocina,
-        },
-    )
-
-    return resultado
 
 
-registrar("revestimiento_banio", ParamsRevestimientoBanio, calcular)
+registrar(CalcRevestimientoBanio())

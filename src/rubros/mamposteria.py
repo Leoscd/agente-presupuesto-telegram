@@ -1,13 +1,4 @@
-"""Rubro: Mampostería de ladrillos.
-
-Fórmulas:
-- m2 = largo * alto
-- ladrillos: cant = ceil(m2 * ladriyos_m2[tipo] * rendimiento(...))
-- cemento: 1 bolsa cada 10 m2
-- plastificante: 1 bidón cada 25 m2
-- arena: 0.03 m3 por m2
-- mano de obra: precio_MO * m2
-"""
+"""Rubro: Mampostería de ladrillos."""
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -48,55 +39,53 @@ LADRILLOS_POR_M2 = {
     "hueco_18": Decimal("28"),
     "comun": Decimal("48"),
 }
-PLASTIFICANTE_POR_M2 = Decimal("0.04")  # bidones por m2 (1 bidón cada 25m2)
+PLASTIFICANTE_POR_M2 = Decimal("0.04")
 
 
-def _q(v) -> Decimal:
-    """Redondeo a 2 decimales."""
+def _q(v: Decimal) -> Decimal:
     return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def calcular(params: ParamsMamposteria, empresa_id: str) -> ResultadoPresupuesto:
-    datos = cargar_empresa(empresa_id)
-    m2 = params.largo * params.alto
+class CalcMamposteria:
+    accion = "mamposteria"
+    schema_params = ParamsMamposteria
 
-    cod_ladrillo = CODIGO_LADRILLO[params.tipo]
-    cod_mo = CODIGO_TAREA_MO[params.tipo]
+    @staticmethod
+    def calcular(params: ParamsMamposteria, empresa_id: str) -> ResultadoPresupuesto:
+        datos = cargar_empresa(empresa_id)
+        m2 = params.largo * params.alto
 
-    # Ladrillos con rendimiento y 5% desperdicio
-    cant_ladrillos = ceil(m2 * LADRILLOS_POR_M2[params.tipo] * rendimiento(datos, cod_ladrillo, Decimal("1.05")))
+        cod_ladrillo = CODIGO_LADRILLO[params.tipo]
+        cod_mo = CODIGO_TAREA_MO[params.tipo]
 
-    # Cemento: 1 bolsa cada 10 m2
-    cant_cemento = ceil(m2 / Decimal("10"))
+        cant_ladrillos = ceil(m2 * LADRILLOS_POR_M2[params.tipo] * rendimiento(datos, cod_ladrillo, Decimal("1.05")))
+        cant_cemento = ceil(m2 / Decimal("10"))
+        cant_plastificante = ceil(m2 * PLASTIFICANTE_POR_M2)
+        cant_arena = _q(Decimal(str(m2))) * Decimal("0.03")
+        costo_mo = precio_mano_obra(datos, cod_mo) * Decimal(str(m2))
 
-    # Plastificante: 1 bidón cada 25 m2
-    cant_plastificante = ceil(m2 * PLASTIFICANTE_POR_M2)
+        partidas = [
+            Partida(concepto=f"Ladrillo {params.tipo}", cantidad=cant_ladrillos, unidad="u", precio_unitario=precio_material(datos, cod_ladrillo), subtotal=cant_ladrillos * precio_material(datos, cod_ladrillo), categoria="material"),
+            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
+            Partida(concepto="Plastificante Hercal", cantidad=cant_plastificante, unidad="u", precio_unitario=precio_material(datos, "PLASTIFICANTE_HERCAL"), subtotal=cant_plastificante * precio_material(datos, "PLASTIFICANTE_HERCAL"), categoria="material"),
+            Partida(concepto="Arena gruesa", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), subtotal=cant_arena * precio_material(datos, "ARENA_GRUESA"), categoria="material"),
+            Partida(concepto="MO mampostería", cantidad=m2, unidad="m2", precio_unitario=costo_mo / Decimal(str(m2)), subtotal=costo_mo, categoria="mano_obra"),
+        ]
 
-    # Arena: 0.03 m3 por m2
-    cant_arena = _q(Decimal(str(m2)) * Decimal("0.03"))
+        materiales_faltantes(partidas, datos)
 
-    # Mano de obra
-    costo_mo = precio_mano_obra(datos, cod_mo) * Decimal(str(m2))
+        total = sum((p.subtotal for p in partidas), Decimal("0"))
+        sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
+        sub_mo = sum((p.subtotal for p in partidas if p.categoria == "mano_obra"), Decimal("0"))
 
-    partidas = [
-        Partida(concepto=f"Ladrillo {params.tipo.replace('_', ' ').title()}", cantidad=cant_ladrillos, unidad="u", precio_unitario=precio_material(datos, cod_ladrillo), categoria="material"),
-        Partida(concepto="Cemento portland bolsa 50kg", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
-        Partida(concepto="Plastificante Hercal/Plasticor bidon 20L", cantidad=cant_plastificante, unidad="u", precio_unitario=precio_material(datos, "PLASTIFICANTE_HERCAL"), categoria="material"),
-        Partida(concepto="Arena gruesa m3", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), categoria="material"),
-        Partida(concepto=f"Mano de obra mampostería {params.tipo}", cantidad=m2, unidad="m2", precio_unitario=costo_mo / Decimal(str(m2)), categoria="mano_obra"),
-    ]
-
-    # Validar materiales
-    materiales_faltantes(partidas, datos)
-
-    resultado = ResultadoPresupuesto(
-        accion="mamposteria",
-        parametros=params.model_dump(),
-        partidas=partidas,
-        metadata={"superficie_m2": m2},
-    )
-
-    return resultado
+        return ResultadoPresupuesto(
+            rubro="mamposteria",
+            partidas=partidas,
+            subtotal_materiales=sub_mat,
+            subtotal_mano_obra=sub_mo,
+            total=total,
+            metadata={"superficie_m2": m2},
+        )
 
 
-registrar("mamposteria", ParamsMamposteria, calcular)
+registrar(CalcMamposteria())
