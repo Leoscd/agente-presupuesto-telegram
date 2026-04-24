@@ -25,6 +25,7 @@ LISTON_MADERA_2X3,Listón de madera 2x3 pulgadas x 3m,u,4800.00,2026-04-23
 CUMBRERA_CERAMICA,Cumbrera cerámica,u,1200.00,2026-04-23
 PORCELANATO_60X60,Porcelanato rectificado 60x60 standard,m2,22500.00,2026-04-23
 PORCELANATO_60X60_PREMIUM,Porcelanato rectificado 60x60 premium,m2,38000.00,2026-04-23
+CANO_PVC_32,Caño PVC presión 32mm barra 6m,u,8500.00,2026-04-24
 CERAMICO_PARED_25X35,Cerámico pared 25x35 esmaltado,m2,14500.00,2026-04-23
 ADHESIVO_PORCELANATO,Adhesivo flexible para porcelanato bolsa 25kg,u,12500.00,2026-04-23
 JUNTA_PORCELANATO,Pastina/junta porcelanato kg,u,1800.00,2026-04-23
@@ -34,4 +35,7 @@ CABLE_IRAM_2X4,Cable IRAM 2x4mm bipolar,ml,1250.00,2026-04-24
 CANO_CORRUGADO_20,Caño corrugado plastico 20mm,ml,320.00,2026-04-24
 TABLERO_MONOF_12,Tablero monofasico 12 modulos,u,38000.00,2026-04-24
 LLAVE_SIMPLE,Llave simple Cambre/similar,u,4500.00,2026-04-24
-TOMACORRIENTE_2P,Tomacorriente 2P+T Cambre/similar,u,5800.00,2026-04-24
+CANO_PVC_50,Caño PVC desague 50mm barra 4m,u,6800.00,2026-04-24
+CANO_PVC_110,Caño PVC desague 110mm barra 4m,u,12500.00,2026-04-24
+CODOS_PVC_32,Codo PVC 32mm 90°,u,850.00,2026-04-24
+SELLADOR_TEFLON,Cinta teflon rollo,u,350.00,2026-04-24
