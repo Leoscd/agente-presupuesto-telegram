@@ -51,3 +51,96 @@
     # m2=9; chapa=9*1.10=9.90*11200=110880; perfil=(ceil(3/1)+1)=4*3m=12*1.05=12.60ml*3200=40320;
     # tornillos=9*12=108*45=4860; mo=9*4200=37800; total=110880+40320+4860+37800=193860
     total: 193860.00
+
+- id: mamposteria_001
+  descripcion: "muro hueco 12 de 5x3 — caso testigo"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: mamposteria
+  parametros:
+    largo: 5
+    alto: 3
+    tipo: hueco_12
+  esperado:
+    total: 482940.00
+    tolerancia_pct: 0.1
+    partidas_minimas: 5
+
+- id: mamposteria_002
+  descripcion: "muro hueco 18 de 4x2.8"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: mamposteria
+  parametros:
+    largo: 4
+    alto: 2.8
+    tipo: hueco_18
+  esperado:
+    total: 439260.00
+    tolerancia_pct: 0.1
+    partidas_minimas: 5
+
+- id: losa_001
+  descripcion: "losa 4x5 espesor 12cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: losa
+  parametros:
+    ancho: 4
+    largo: 5
+    espesor_cm: 12
+  esperado:
+    total: 458700.00
+    tolerancia_pct: 0.1
+
+- id: contrapiso_001
+  descripcion: "contrapiso 20m2 espesor 8cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: contrapiso
+  parametros:
+    superficie_m2: 20
+    espesor_cm: 8
+  esperado:
+    total: 189600.00
+    tolerancia_pct: 0.1
+
+- id: revoque_001
+  descripcion: "revoque Grueso 30m2 espesor 1.5cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: revoque_grueso
+  parametros:
+    superficie_m2: 30
+    espesor_cm: 1.5
+  esperado:
+    total: 156600.00
+    tolerancia_pct: 0.1
+
+- id: cubierta_tejas_001
+  descripcion: "cubierta teja ceramica 5x8 30% pendiente"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: cubierta_tejas
+  parametros:
+    ancho: 5
+    largo: 8
+    pendiente_pct: 30
+    tipo_teja: ceramica_colonial
+  esperado:
+    total: 285600.00
+    tolerancia_pct: 0.1
+
+- id: revestimiento_001
+  descripcion: "bano porcelanato 6m2 piso + 18m2 pared ceramico"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: revestimiento_banio
+  parametros:
+    superficie_piso_m2: 6
+    superficie_pared_m2: 18
+    material_piso: porcelanato_60x60
+    material_pared: ceramico_pared_25x35
+  esperado:
+    total: 698700.00
+    tolerancia_pct: 0.1

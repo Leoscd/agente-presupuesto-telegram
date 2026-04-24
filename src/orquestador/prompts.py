@@ -33,7 +33,11 @@ ACCIONES DISPONIBLES:
 
 7. "revestimiento_banio": superficie_piso_m2(0 si no aplica), superficie_pared_m2(0 si no aplica), material_piso("porcelanato_60x60"|"porcelanato_60x60_premium"|"ceramico_30x30"|"ceramico_45x45"), material_pared("porcelanato_60x60"|"ceramico_pared_25x35"|"ceramico_30x30"), incluye_alzada_cocina(bool), superficie_alzada_m2(default 0)
 
-8. "aclaracion": pregunta(string) — cuando faltan datos críticos (dimensiones, tipo de material)
+8. "instalacion_electrica": superficie_m2, tipo("basica"|"completa"), cantidad_bocas(default 0), incluye_tablero(bool, default true)
+
+9. "instalacion_sanitaria": cantidad_banos(1-10), cantidad_cocinas(0-5), metros_lineales_agua_fria(default 0), metros_lineales_desague(default 0), tipo_cano("pvc"|"polipropileno")
+
+10. "aclaracion": pregunta(string) — cuando faltan datos críticos (dimensiones, tipo de material)
 
 REGLAS:
 - Devolvé SOLO JSON. Cero texto fuera del JSON.

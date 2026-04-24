@@ -10,3 +10,5 @@ CONTRAPISO,Contrapiso de hormigón,m2,4500.00,2
 PISO_CERAMICO,Colocación piso cerámico,m2,6800.00,2
 REVESTIMIENTO_CERAMICO,Colocación revestimiento cerámico paredes,m2,7800.00,2
 CUBIERTA_TEJAS,Colocación cubierta de tejas,m2,6500.00,2
+INSTALACION_ELECTRICA,Instalacion electrica completa,m2,8500.00,2
+INSTALACION_SANITARIA,Instalacion sanitaria completa,u,85000.00,2
