@@ -72,7 +72,7 @@ def main() -> int:
     fail = 0
     for caso in casos:
         passed, fallos = _evaluar(caso)
-        marker = "✅" if passed else "❌"
+        marker = "OK" if passed else "FAIL"
         print(f"{marker} {caso['id']:14} {caso['descripcion']}")
         if not passed:
             for f in fallos:

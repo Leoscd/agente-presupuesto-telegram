@@ -139,9 +139,10 @@ class _CalcTechoChapa:
         # --- Mano de obra ---
         p_mo = precio_mano_obra(datos, "TECHO_CHAPA")
         sub_mo = _q(m2 * p_mo)
+        mo_concepto = "Colocación de chapa y perfilería" if params.tipo_perfil else "Colocación de chapa"
         partidas.append(
             Partida(
-                concepto="Colocación de chapa y perfilería",
+                concepto=mo_concepto,
                 cantidad=_q(m2),
                 unidad="m2",
                 precio_unitario=p_mo,

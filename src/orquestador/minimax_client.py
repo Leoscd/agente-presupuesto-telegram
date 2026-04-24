@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 
@@ -49,6 +50,27 @@ def _cliente() -> AsyncOpenAI:
     return _client
 
 
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+_JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
+def _strip_think(content: str) -> str:
+    """MiniMax-M2 outputs <think>...</think> before JSON, sometimes wrapped in markdown fences.
+    Strips both; falls back to regex extraction if think block is truncated.
+    """
+    clean = _THINK_RE.sub("", content).strip()
+    # strip markdown code fences if present
+    fence_m = _FENCE_RE.search(clean)
+    if fence_m:
+        clean = fence_m.group(1).strip()
+    if clean:
+        return clean
+    # think block truncated — extract first {...} directly
+    m = _JSON_RE.search(content)
+    return m.group(0) if m else "{}"
+
+
 def _estimar_usd(tin: int, tout: int) -> float:
     return round(tin / 1_000_000 * USD_PER_1M_INPUT + tout / 1_000_000 * USD_PER_1M_OUTPUT, 6)
 
@@ -65,10 +87,10 @@ async def clasificar_categoria(texto: str) -> tuple[str, float]:
             ],
             response_format={"type": "json_object"},
             temperature=0.1,
-            max_tokens=100,
+            max_tokens=2000,
         )
         latencia_ms = int((time.perf_counter() - t0) * 1000)
-        content = resp.choices[0].message.content or "{}"
+        content = _strip_think(resp.choices[0].message.content or "{}")
         raw = json.loads(content)
         categoria = str(raw.get("categoria", ""))
         confianza = float(raw.get("confianza", 0.0))
@@ -90,11 +112,11 @@ async def parsear(texto_usuario: str, materiales_disponibles: list[str], accione
         ],
         response_format={"type": "json_object"},
         temperature=0.1,
-        max_tokens=400,
+        max_tokens=1000,
     )
 
     latencia_ms = int((time.perf_counter() - t0) * 1000)
-    content = resp.choices[0].message.content or "{}"
+    content = _strip_think(resp.choices[0].message.content or "{}")
     try:
         raw = json.loads(content)
     except json.JSONDecodeError as e:
