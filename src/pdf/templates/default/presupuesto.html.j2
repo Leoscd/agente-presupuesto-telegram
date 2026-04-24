@@ -6,8 +6,17 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  {% if metadata.borrador %}
+  <div class="watermark">BORRADOR</div>
+  {% endif %}
+
   <header class="hdr">
     <div class="hdr-left">
+      {% if empresa.logo_url %}
+      <img src="{{ empresa.logo_url }}" class="logo-img" alt="{{ empresa.nombre }}">
+      {% else %}
+      <div class="estudio-logo">{{ empresa.nombre[:2] }}</div>
+      {% endif %}
       <div class="estudio">{{ empresa.nombre }}</div>
       {% if empresa.direccion %}<div class="meta">{{ empresa.direccion }}</div>{% endif %}
       {% if empresa.telefono %}<div class="meta">{{ empresa.telefono }}</div>{% endif %}
@@ -78,7 +87,7 @@
   {% endif %}
 
   <footer class="ftr">
-    <div>Presupuesto válido por 15 días desde la fecha de emisión.</div>
+    <div>Presupuesto válido por 30 días desde la fecha de emisión.</div>
     <div>Los precios pueden variar por actualización de insumos.</div>
   </footer>
 </body>

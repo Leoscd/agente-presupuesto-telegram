@@ -187,3 +187,37 @@ tfoot tr.total td {
   color: var(--muted);
   text-align: center;
 }
+
+/* Watermark */
+.watermark {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 72pt;
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Logo placeholder */
+.estudio-logo {
+  width: 48px;
+  height: 48px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20pt;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.logo-img {
+  max-width: 80px;
+  max-height: 48px;
+  margin-bottom: 6px;
+}
