@@ -15,6 +15,7 @@ from src.rubros import (  # noqa: F401
     instalacion_electrica,
     instalacion_sanitaria,
     revoque_fino,
+    piso_ceramico,
 )
 
 __all__ = ["REGISTRY", "Calculadora", "Partida", "ResultadoPresupuesto", "registrar"]

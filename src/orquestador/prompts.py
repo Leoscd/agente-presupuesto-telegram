@@ -38,7 +38,9 @@ ACCIONES DISPONIBLES:
 
 9. "instalacion_sanitaria": cantidad_banos(1-10), cantidad_cocinas(0-5), metros_lineales_agua_fria(default 0), metros_lineales_desague(default 0), tipo_cano("pvc"|"polipropileno")
 
-10. "aclaracion": pregunta(string) — cuando faltan datos críticos (dimensiones, tipo de material)
+10. "piso_ceramico": superficie_m2, material("ceramico_30x30"|"ceramico_45x45"|"porcelanato_60x60"|"porcelanato_60x60_premium"), incluye_zocalo(bool, default false), perimetro_m(default 0)
+
+11. "aclaracion": pregunta(string)
 
 REGLAS:
 - Devolvé SOLO JSON. Cero texto fuera del JSON.
