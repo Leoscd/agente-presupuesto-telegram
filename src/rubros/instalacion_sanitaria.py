@@ -101,7 +101,9 @@ class CalcInstalacionSanitaria:
             categoria="mano_obra"
         ))
 
-        materiales_faltantes(partidas, datos)
+        # Validar materiales
+        codigos = [p.concepto.split()[0] for p in partidas]
+        faltantes = materiales_faltantes(datos, codigos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
@@ -119,6 +121,7 @@ class CalcInstalacionSanitaria:
                 "ml_agua_fria": ml_agua,
                 "ml_desague": ml_desague,
             },
+            advertencias=[f"Materiales no disponibles: {faltantes}"] if faltantes else [],
         )
 
 

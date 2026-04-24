@@ -58,7 +58,9 @@ class CalcRevoqueFino:
             categoria="mano_obra"
         ))
 
-        materiales_faltantes(partidas, datos)
+        # Extraer codigos de partidas
+        codigos = [p.concepto.split()[0] for p in partidas]
+        faltantes = materiales_faltantes(datos, codigos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
@@ -70,7 +72,7 @@ class CalcRevoqueFino:
             subtotal_materiales=sub_mat,
             subtotal_mano_obra=sub_mo,
             total=total,
-            metadata={"superficie_m2": params.superficie_m2},
+            metadata={"superficie_m2": params.superficie_m2}, advertencias=[f"Materiales no disponibles: {faltantes}"] if faltantes else [],
         )
 
 
