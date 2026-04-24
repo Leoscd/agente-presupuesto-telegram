@@ -31,6 +31,7 @@ ACCIONES DISPONIBLES:
 
 6. "revoque_grueso": superficie_m2, espesor_cm(default 1.5)
 
+7. "revoque_fino": superficie_m2, espesor_cm(default 0.5)
 7. "revestimiento_banio": superficie_piso_m2(0 si no aplica), superficie_pared_m2(0 si no aplica), material_piso("porcelanato_60x60"|"porcelanato_60x60_premium"|"ceramico_30x30"|"ceramico_45x45"), material_pared("porcelanato_60x60"|"ceramico_pared_25x35"|"ceramico_30x30"), incluye_alzada_cocina(bool), superficie_alzada_m2(default 0)
 
 8. "instalacion_electrica": superficie_m2, tipo("basica"|"completa"), cantidad_bocas(default 0), incluye_tablero(bool, default true)
