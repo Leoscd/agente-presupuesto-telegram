@@ -1,573 +1,268 @@
-# ESTADO DE TAREA - Fase 2
+# ESTADO DE TAREA - Fase 3
 
-## ✅ COMPLETADO
+## ✅ COMPLETADO (Fase 2)
 
-- **Corrección cal → plastificante Hercal**: CSVs y JSONs actualizados
-- **Tarea 1 - Two-stage routing**: categorias.py, prompts.py, minimax_client.py, router.py
-- **Tarea 2 - Mampostería**: src/rubros/mamposteria.py + tests/golden (pendiente)
-- **Tarea 3 - Losa**: src/rubros/losa.py + tests/golden (pendiente)
-- **Tarea 4 - Contrapiso**: src/rubros/contrapiso.py + tests/golden (pendiente)
-- **Tarea 5 - Revoque Grueso**: src/rubros/revoque_grueso.py + tests/golden (pendiente)
-- **Tarea 6 - Cubierta de Tejas**: src/rubros/cubierta_tejas.py + tests/golden (pendiente)
-- **Tarea 7 - Revestimiento Baño/Cocina**: src/rubros/revestimiento_banio.py + tests/golden (pendiente)
-- **Tarea 8 - Registry**: __init__.py + prompts actualizados
+- Two-stage routing MiniMax (categorias.py, prompts.py, minimax_client.py, router.py)
+- Rubros: mamposteria, losa, contrapiso, revoque_grueso, cubierta_tejas, revestimiento_banio
+- Tests: 102 passing — tests/rubros/test_*.py + 18 golden cases
+- Datos: CSVs y JSONs actualizados en plantilla y estudio_ramos
+- Agentes de revisión: .claude/agents/ (formula-auditor, rubro-reviewer, csv-validator, rubro-fixer, test-writer, pipeline-runner)
 
-## ⚠️ PENDIENTE / FALLA
+## ⚠️ PENDIENTE — Fase 3
 
-- **Tests**: Faltan crear test_mamposteria.py, test_losa.py, etc.
-- **Golden cases**: Faltan agregar a tests/golden/casos.yaml
-- **Precios mano de obra**: Agregar al CSV (MAMPOSTERIA_*, CUBIERTA_TEJAS, etc.)
-
-## 📋 NOTAS
-
-- Registry carga: ['techo_chapa', 'cubierta_tejas', 'mamposteria', 'losa', 'contrapiso', 'revoque_grueso', 'revestimiento_banio']
-- Syntax errors corregidos en todos los archivos
-- Pattern de clase (Calc*) implementado
+- Tarea 1: Rubro `revoque_fino`
+- Tarea 2: Rubro `piso_ceramico` (standalone, sin paredes)
+- Tarea 3: Actualizar categorias.py + prompts con nuevos rubros
+- Tarea 4: Verificación final (pytest 100% + golden cases)
 
 ---
 
-# Tareas para el agente de código — Fase 2
+# Tareas para el agente de código — Fase 3
 
-> **Leer primero:** El patrón de implementación de rubros está en `src/rubros/techo_chapa.py`.
-> Seguir ese patrón exacto para cada rubro nuevo. El agente NO debe modificar la arquitectura.
-
----
-
-## CORRECCIONES AL CSV ANTES DE EMPEZAR
-
-### 1. Reemplazar cal hidráulica por plastificante Hercal/Plasticor
-
-La cal hidráulica **no se usa** en obra argentina actual. El plastificante de mortero es **Hercal** o **Plasticor** (marcas comerciales del mismo producto).
-
-**En `empresas/_plantilla/precios_materiales.csv` y `empresas/estudio_ramos/precios_materiales.csv`:**
-
-Eliminar la línea:
-```
-CAL_HIDRAULICA,Cal hidráulica bolsa 25kg,u,4200.00,2026-04-23
-```
-
-Reemplazar por:
-```
-PLASTIFICANTE_HERCAL,Plastificante Hercal/Plasticor bidon 20L,u,18500.00,2026-04-23
-```
-
-**En `materiales_disponibles.json`** (ambas empresas + plantilla): reemplazar `"CAL_HIDRAULICA"` por `"PLASTIFICANTE_HERCAL"`.
-
-**Dosis de uso:** 1 bidón cada 25 m2 de mampostería (o cada 20 m2 de piso cerámico). Usar esta constante en las calculadoras.
+> **Leer primero:** El patrón de implementación está en `src/rubros/techo_chapa.py`.
+> Seguir ese patrón exacto. No modificar la arquitectura ni los rubros existentes.
+>
+> **Antes de empezar:** correr `python3 -m pytest tests/ -q` — deben pasar 102 tests.
+> Si alguno falla, detener y reportar antes de continuar.
 
 ---
 
-## TAREA 1 — Two-stage routing (arquitectura de grupos)
+## TAREA 1 — Rubro: Revoque fino
 
-### 1a. Crear `src/rubros/categorias.py`
+### Archivo: `src/rubros/revoque_fino.py`
 
+**Clase `ParamsRevoqueFino(BaseModel)`:**
 ```python
-CATEGORIAS: dict[str, list[str]] = {
-    "cubiertas":     ["techo_chapa", "cubierta_tejas"],
-    "obra_gruesa":   ["mamposteria", "losa", "contrapiso"],
-    "terminaciones": ["revoque_grueso", "revoque_fino", "piso_ceramico", "revestimiento_banio"],
-    "instalaciones": [],  # fase 3
-}
+superficie_m2: PositiveFloat
+espesor_cm: float = Field(0.5, ge=0.3, le=1.5)
 ```
 
-### 1b. Modificar `src/orquestador/prompts.py`
-
-Agregar constante `SYSTEM_PROMPT_CATEGORIA`:
-
+**Constantes:**
 ```python
-SYSTEM_PROMPT_CATEGORIA = """Clasificá el pedido en UNA de estas categorías:
-- cubiertas: techos de chapa, tejas, membrana, losa de cubierta
-- obra_gruesa: mampostería, losa entre pisos, contrapiso, encadenados
-- terminaciones: revoques, pisos, cerámicos, porcelanato, revestimientos
-- instalaciones: electricidad, sanitaria, gas
-
-Devolvé SOLO JSON: {"categoria": "<nombre>", "confianza": <0.0-1.0>}"""
+# Mortero 1:3 yeso:arena fina
+# 1 bolsa yeso (0.020 m3) por cada 0.060 m3 mortero
+YESO_M3_POR_BOLSA = Decimal("0.020")
+# Plastificante: 1 bidón cada 40 m2
+PLASTIFICANTE_POR_M2 = Decimal("0.025")
 ```
 
-Modificar `build_user_message()` para aceptar `acciones_filtradas: list[str] | None = None`.
-Si se pasa, agregar al mensaje: `"Acciones disponibles en este contexto: {acciones_filtradas}"`.
-
-### 1c. Modificar `src/orquestador/minimax_client.py`
-
-Agregar función:
-```python
-async def clasificar_categoria(texto: str) -> tuple[str, float]:
-    # Llamar MiniMax con SYSTEM_PROMPT_CATEGORIA + texto
-    # Retornar (categoria, confianza) del JSON de respuesta
-    # Si falla o confianza < 0.6 → retornar ("", 0.0)
+**Agregar al CSV (ambas empresas + plantilla):**
 ```
-
-Modificar `parsear()` para aceptar `acciones_filtradas: list[str] | None = None`.
-Pasarlo a `build_user_message()`.
-
-### 1d. Agregar `despachar_con_pipeline()` en `src/orquestador/router.py`
-
-```python
-async def despachar_con_pipeline(
-    texto: str, empresa_id: str, materiales_disponibles: list[str]
-) -> tuple[ResultadoPresupuesto, RespuestaOrq]:
-    """Two-stage: clasificar categoría → parsear acción filtrada → calcular."""
-    from src.rubros.categorias import CATEGORIAS
-    from src.orquestador.minimax_client import clasificar_categoria, parsear
-
-    cat, conf_cat = await clasificar_categoria(texto)
-    if cat and conf_cat >= 0.8:
-        acciones = CATEGORIAS.get(cat, [])
-    else:
-        acciones = None  # sin filtro
-
-    resp = await parsear(texto, materiales_disponibles, acciones_filtradas=acciones)
-    if resp.accion == "aclaracion":
-        # No calcular, retornar para que el handler pregunte
-        return None, resp  # type: ignore[return-value]
-    resultado = despachar(resp.accion, resp.parametros, empresa_id)
-    return resultado, resp
+YESO_FINO,Yeso fino bolsa 20kg,bolsa,1850.00,2026-04-24
 ```
+Agregar `"YESO_FINO"` a `materiales_disponibles.json`.
 
-Actualizar `src/bot/handlers.py` → función `on_mensaje()` para llamar `despachar_con_pipeline()` en vez de `minimax_client.parsear()` + `router.despachar()` por separado.
-
----
-
-## TAREA 2 — Rubro: Mampostería
-
-### Archivo: `src/rubros/mamposteria.py`
-
-**Clase `ParamsMamposteria(BaseModel)`:**
-```python
-largo: PositiveFloat        # metros lineales de muro
-alto: PositiveFloat         # altura en metros
-tipo: Literal["hueco_12", "hueco_18", "comun"] = "hueco_12"
+Agregar a `precios_mano_obra.csv`:
 ```
-
-**Constantes internas:**
-```python
-CODIGO_LADRILLO = {
-    "hueco_12": "LADRILLO_HUECO_12",
-    "hueco_18": "LADRILLO_HUECO_18",
-    "comun":    "LADRILLO_COMUN",
-}
-CODIGO_TAREA_MO = {
-    "hueco_12": "MAMPOSTERIA_HUECO_12",
-    "hueco_18": "MAMPOSTERIA_HUECO_18",
-    "comun":    "MAMPOSTERIA_COMUN",
-}
-LADRILLOS_POR_M2 = {
-    "hueco_12": Decimal("36"),
-    "hueco_18": Decimal("28"),
-    "comun":    Decimal("48"),
-}
-PLASTIFICANTE_POR_M2 = Decimal("0.04")  # bidones por m2 (1 bidón cada 25m2)
+REVOQUE_FINO,Colocación revoque fino enlucido,m2,5200.00,2026-04-24
 ```
 
 **Fórmulas en `calcular()`:**
 ```python
-m2 = largo * alto
+sup = Decimal(str(params.superficie_m2))
+m3_mortero = _q(sup * Decimal(str(params.espesor_cm)) / Decimal("100"))
 
-# Ladrillos
-cant_ladrillos = ceil(m2 * LADRILLOS_POR_M2[tipo] * rendimiento(datos, cod_ladrillo, Decimal("1.05")))
+# Yeso: ceil(m3 / YESO_M3_POR_BOLSA)
+cant_yeso = Decimal(ceil(m3_mortero / YESO_M3_POR_BOLSA))
 
-# Mortero seco (cemento en bolsas): 1 bolsa cada 10 m2
-cant_cemento = ceil(m2 / Decimal("10"))
+# Arena fina: m3_mortero * 3
+cant_arena = _q(m3_mortero * Decimal("3"))
 
-# Plastificante Hercal/Plasticor: 1 bidón cada 25 m2
-cant_plastificante = ceil(m2 * PLASTIFICANTE_POR_M2)
+# Plastificante: max(1, ceil(sup * PLASTIFICANTE_POR_M2))
+cant_plastificante = Decimal(max(1, ceil(sup * PLASTIFICANTE_POR_M2)))
 
-# Arena gruesa: 0.03 m3 por m2
-cant_arena = _q(m2 * Decimal("0.03"))
-
-# Mano de obra: precio_mano_obra(datos, CODIGO_TAREA_MO[tipo]) * m2
+# MO: precio_mano_obra(datos, "REVOQUE_FINO") * sup
 ```
 
 **Partidas (en este orden):**
-1. Ladrillo (concepto dinámico según tipo, unidad "u", categoria "material")
-2. Cemento portland (bolsa, "material")
-3. Plastificante Hercal/Plasticor (u, "material")
-4. Arena gruesa (m3, "material")
-5. Mano de obra mampostería (m2, "mano_obra")
+1. Yeso fino (bolsa, material)
+2. Arena fina (m3, material) — usar código `ARENA_FINA` si existe, si no `ARENA_GRUESA`
+3. Plastificante Hercal (u, material)
+4. Mano de obra revoque fino (m2, mano_obra)
 
-`accion = "mamposteria"`. Llamar `registrar(...)` al final del archivo.
+`accion = "revoque_fino"`. Llamar `registrar(...)` al final.
 
-### Test: `tests/rubros/test_mamposteria.py`
+**`metadata`:** `superficie_m2`, `volumen_mortero_m3`, `espesor_cm`
 
-```python
-EMPRESA = "estudio_ramos"
-
-def test_muro_hueco12_5x3():
-    r = _calc(largo=5, alto=3, tipo="hueco_12")
-    assert r.metadata["superficie_m2"] == 15.0
-    # ladrillos: ceil(15 * 36 * 1.05) = ceil(567) = 567
-    # cemento: ceil(15/10) = 2
-    # plastificante: ceil(15 * 0.04) = 1
-    # arena: 15 * 0.03 = 0.45 m3
-    ladr = next(p for p in r.partidas if "ladrillo" in p.concepto.lower())
-    assert ladr.cantidad == Decimal("567")
-
-def test_invariante_suma_igual_total()  # igual que en techo_chapa
-def test_propiedad_monotonia()          # hypothesis: más m2 → más total
-def test_propiedad_idempotencia()       # hypothesis: mismo input → mismo resultado
-```
-
-**Agregar 3 casos a `tests/golden/casos.yaml`** (calcular manualmente con los precios de `estudio_ramos`):
-- `mamposteria_001`: largo=5, alto=3, tipo=hueco_12
-- `mamposteria_002`: largo=10, alto=2.8, tipo=hueco_18
-- `mamposteria_003`: largo=8, alto=3, tipo=comun
+**Tests: `tests/rubros/test_revoque_fino.py`**
+- `test_caso_base`: superficie_m2=20, espesor_cm=0.5
+- `test_plastificante_minimo`: superficie_m2=10 → cant_plastificante=1
+- `test_invariante_suma_igual_total`
+- `test_idempotencia` (hypothesis)
+- 2 golden cases: 20m2 esp0.5, 50m2 esp1.0
 
 ---
 
-## TAREA 3 — Rubro: Losa de hormigón armado
+## TAREA 2 — Rubro: Piso cerámico / porcelanato
 
-### Archivo: `src/rubros/losa.py`
+Este rubro cubre **solo piso** (sin paredes). Es distinto a `revestimiento_banio` que maneja piso + paredes. Aplica a living, cocina, locales comerciales.
 
-**Clase `ParamsLosa(BaseModel)`:**
-```python
-ancho: PositiveFloat
-largo: PositiveFloat
-espesor_cm: float = Field(12.0, ge=8.0, le=25.0)
-```
+### Archivo: `src/rubros/piso_ceramico.py`
 
-**Fórmulas (dosificación H21):**
-```python
-m2 = ancho * largo
-m3 = _q(m2 * Decimal(str(espesor_cm)) / Decimal("100"))
-
-# Por m3: 7 bolsas cemento, 0.45 m3 arena, 0.65 m3 piedra
-cant_cemento = ceil(m3 * Decimal("7"))
-cant_arena   = _q(m3 * Decimal("0.45"))
-cant_piedra  = _q(m3 * Decimal("0.65"))
-
-# Hierro 8mm: 1.2 barras por m2 (doble malla, ambas direcciones)
-cant_h8 = ceil(m2 * Decimal("1.2"))
-
-# Plastificante: 1 bidón cada 15 m3 de hormigón
-cant_plastificante = max(1, ceil(m3 / Decimal("15")))
-
-# Mano de obra: precio_mano_obra(datos, "LOSA_HORMIGON") * m2
-```
-
-**Partidas:**
-1. Cemento portland (bolsa, material)
-2. Arena gruesa (m3, material)
-3. Piedra partida 6-12mm (m3, material)
-4. Hierro nervado 8mm (u, material)
-5. Plastificante Hercal (u, material)
-6. Mano de obra losa (m2, mano_obra)
-
-`accion = "losa"`. Registrar.
-
-**Tests:** caso base 4x5 espesor 12cm. Invariante suma, monotonía, idempotencia. 3 casos golden.
-
----
-
-## TAREA 4 — Rubro: Contrapiso de hormigón
-
-### Archivo: `src/rubros/contrapiso.py`
-
-**Clase `ParamsContrapiso(BaseModel)`:**
+**Clase `ParamsPisoCeramico(BaseModel)`:**
 ```python
 superficie_m2: PositiveFloat
-espesor_cm: float = Field(8.0, ge=5.0, le=15.0)
+material: Literal[
+    "ceramico_30x30", "ceramico_45x45",
+    "porcelanato_60x60", "porcelanato_60x60_premium"
+] = "ceramico_45x45"
+incluye_zocalo: bool = False
+perimetro_m: float = Field(0.0, ge=0.0)  # metros lineales de zócalo
 ```
 
-**Fórmulas (hormigón pobre H13):**
+**Constantes:**
 ```python
-m3 = _q(sup * Decimal(str(espesor_cm)) / Decimal("100"))
-
-# Por m3: 4 bolsas cemento, 0.55 m3 arena, 0.65 m3 piedra
-cant_cemento = ceil(m3 * Decimal("4"))
-cant_arena   = _q(m3 * Decimal("0.55"))
-cant_piedra  = _q(m3 * Decimal("0.65"))
-
-# Mano de obra: precio_mano_obra(datos, "CONTRAPISO") * m2
-```
-
-`accion = "contrapiso"`. Tests + 2 casos golden.
-
----
-
-## TAREA 5 — Rubro: Revoque grueso interior
-
-### Archivo: `src/rubros/revoque_grueso.py`
-
-**Clase `ParamsRevoqueGrueso(BaseModel)`:**
-```python
-superficie_m2: PositiveFloat
-espesor_cm: float = Field(1.5, ge=0.5, le=3.0)
-```
-
-**Fórmulas (mortero 1:3 cemento-arena):**
-```python
-m3_mortero = _q(sup * Decimal(str(espesor_cm)) / Decimal("100"))
-
-# 1 bolsa cemento (0.035 m3) por cada 0.105 m3 mortero (relación 1:3)
-cant_cemento = ceil(m3_mortero / Decimal("0.035"))
-cant_arena   = _q(m3_mortero * Decimal("3"))
-
-# Plastificante: 1 bidón cada 30 m2
-cant_plastificante = max(1, ceil(sup / Decimal("30")))
-
-# Mano de obra: "REVOQUE_GRUESO" * m2
-```
-
-`accion = "revoque_grueso"`. Tests + 2 casos golden.
-
----
-
-## TAREA 6 — Rubro: Cubiertas de tejas
-
-### Archivo: `src/rubros/cubierta_tejas.py`
-
-Agregar al CSV (ambas empresas + plantilla):
-```
-TEJA_CERAMICA_COL,Teja cerámica colonial,u,850.00,2026-04-23
-TEJA_CEMENTO,Teja de cemento,u,620.00,2026-04-23
-LISTÓN_MADERA_2X3,Listón de madera 2x3" x 3m,u,4800.00,2026-04-23
-CUMBRERA_CERAMICA,Cumbrera cerámica,u,1200.00,2026-04-23
-```
-Agregar a `materiales_disponibles.json`.
-
-**Clase `ParamsCubiertaTejas(BaseModel)`:**
-```python
-ancho: PositiveFloat
-largo: PositiveFloat
-tipo_teja: Literal["ceramica_colonial", "cemento"] = "ceramica_colonial"
-pendiente_pct: float = Field(30.0, ge=15.0, le=60.0)  # pendiente en %
-```
-
-**Fórmulas:**
-```python
-# Superficie real con pendiente
-factor_pendiente = (1 + (Decimal(str(pendiente_pct)) / Decimal("100")) ** 2).sqrt()
-m2_real = _q(ancho * largo * factor_pendiente)
-
-CODIGO_TEJA = {"ceramica_colonial": "TEJA_CERAMICA_COL", "cemento": "TEJA_CEMENTO"}
-TEJAS_POR_M2 = {"ceramica_colonial": Decimal("16"), "cemento": Decimal("12")}
-
-# Tejas con 10% desperdicio
-cant_tejas = ceil(m2_real * TEJAS_POR_M2[tipo] * Decimal("1.10"))
-
-# Listones: 1 liston cada 3 tejas de ancho, aprox 1 listón por m2
-cant_listones = ceil(m2_real * Decimal("1.2"))
-
-# Cumbreras: largo / 0.30m (largo de cada pieza)
-cant_cumbreras = ceil(Decimal(str(largo)) / Decimal("0.30"))
-
-# Mano de obra: nueva tarea "CUBIERTA_TEJAS" — agregar al CSV precios_mano_obra
-# precio sugerido: 6500 ARS/m2
-```
-
-Agregar `CUBIERTA_TEJAS,Colocación cubierta de tejas,m2,6500.00,2` al CSV `precios_mano_obra.csv` (ambas empresas + plantilla).
-
-`accion = "cubierta_tejas"`. Tests + 2 casos golden.
-
----
-
-## TAREA 7 — Rubro: Revestimiento de baño/cocina
-
-Este rubro es el más flexible: piso y paredes pueden ser materiales distintos. Debe manejar:
-- Solo piso
-- Solo paredes
-- Ambos con el mismo material
-- Ambos con materiales distintos (caso cocina con alzada de mesada)
-
-### Agregar al CSV materiales (ambas empresas + plantilla):
-```
-PORCELANATO_60X60,Porcelanato rectificado 60x60 standard,m2,22500.00,2026-04-23
-PORCELANATO_60X60_PREMIUM,Porcelanato rectificado 60x60 premium,m2,38000.00,2026-04-23
-CERAMICO_PARED_25X35,Cerámico pared 25x35 esmaltado,m2,14500.00,2026-04-23
-ADHESIVO_PORCELANATO,Adhesivo flexible para porcelanato bolsa 25kg,u,12500.00,2026-04-23
-JUNTA_PORCELANATO,Pastina/junta porcelanato kg,u,1800.00,2026-04-23
-```
-
-Agregar `"PISO_CERAMICO"` y `"REVESTIMIENTO_CERAMICO"` como tareas en `precios_mano_obra.csv` si no existen:
-```
-REVESTIMIENTO_CERAMICO,Colocación revestimiento cerámico paredes,m2,7800.00,2
-```
-
-Agregar todos los nuevos códigos a `materiales_disponibles.json`.
-
-### Archivo: `src/rubros/revestimiento_banio.py`
-
-**Clase `ParamsRevestimientoBanio(BaseModel)`:**
-```python
-superficie_piso_m2: float = Field(0.0, ge=0.0)
-superficie_pared_m2: float = Field(0.0, ge=0.0)
-material_piso: Literal[
-    "porcelanato_60x60", "porcelanato_60x60_premium", "ceramico_30x30", "ceramico_45x45"
-] = "porcelanato_60x60"
-material_pared: Literal[
-    "porcelanato_60x60", "porcelanato_60x60_premium", "ceramico_pared_25x35", "ceramico_30x30"
-] = "ceramico_pared_25x35"
-incluye_alzada_cocina: bool = False
-superficie_alzada_m2: float = Field(0.0, ge=0.0)  # zócalo alto de mesada
-
-@model_validator(mode="after")
-def al_menos_una_superficie(self):
-    if self.superficie_piso_m2 == 0 and self.superficie_pared_m2 == 0:
-        raise ValueError("Debe especificar superficie de piso y/o paredes")
-    return self
-```
-
-**Códigos:**
-```python
-CODIGO_MATERIAL: dict[str, str] = {
-    "porcelanato_60x60":         "PORCELANATO_60X60",
-    "porcelanato_60x60_premium": "PORCELANATO_60X60_PREMIUM",
-    "ceramico_pared_25x35":      "CERAMICO_PARED_25X35",
+CODIGO_MATERIAL = {
     "ceramico_30x30":            "CERAMICO_30X30",
     "ceramico_45x45":            "CERAMICO_45X45",
+    "porcelanato_60x60":         "PORCELANATO_60X60",
+    "porcelanato_60x60_premium": "PORCELANATO_60X60_PREMIUM",
 }
-ADHESIVO_POR_MAT: dict[str, str] = {
-    "porcelanato_60x60":         "ADHESIVO_PORCELANATO",
-    "porcelanato_60x60_premium": "ADHESIVO_PORCELANATO",
-    "ceramico_pared_25x35":      "ADHESIVO_CERAMICO",
+CODIGO_ADHESIVO = {
     "ceramico_30x30":            "ADHESIVO_CERAMICO",
     "ceramico_45x45":            "ADHESIVO_CERAMICO",
+    "porcelanato_60x60":         "ADHESIVO_PORCELANATO",
+    "porcelanato_60x60_premium": "ADHESIVO_PORCELANATO",
 }
-ADHESIVO_M2_POR_BOLSA = Decimal("4")   # cerámico
-ADHESIVO_PORCELANATO_M2_POR_BOLSA = Decimal("3")  # porcelanato necesita más adhesivo
+ADHESIVO_M2_POR_BOLSA = Decimal("4")        # cerámico
+ADHESIVO_PORC_M2_POR_BOLSA = Decimal("3")   # porcelanato
 JUNTA_M2_POR_KG = Decimal("3")
+ZOCALO_ML_POR_M2 = Decimal("0.10")          # bolsas adhesivo por ml de zócalo
 ```
 
-**Lógica `calcular()`:**
+**Agregar al CSV (ambas empresas + plantilla) si no existen:**
+```
+CERAMICO_30X30,Cerámico piso 30x30,m2,8500.00,2026-04-24
+CERAMICO_45X45,Cerámico piso 45x45,m2,12800.00,2026-04-24
+ZOCALO_CERAMICO,Zócalo cerámico 8x33cm,ml,3200.00,2026-04-24
+```
+Agregar a `materiales_disponibles.json` los que falten.
 
-Función auxiliar interna `_partidas_superficie(sup_m2, material_key, tarea_mo, descripcion_concepto)` que genera las partidas para una superficie dada:
-- Material con 10% desperdicio: `cant = _q(sup_m2 * rend(datos, codigo, Decimal("1.10")))`
-- Adhesivo: `cant_adhesivo = ceil(sup_m2 / m2_por_bolsa)`
-- Pastina: `cant_pastina = ceil(sup_m2 / JUNTA_M2_POR_KG)`
-- Mano de obra: `precio_mano_obra(datos, tarea_mo) * sup_m2`
+Verificar que `PISO_CERAMICO` existe en `precios_mano_obra.csv` (ya fue agregado en Fase 2).
 
-Llamar `_partidas_superficie` para:
-1. Piso (si `superficie_piso_m2 > 0`) — usa tarea `"PISO_CERAMICO"`
-2. Paredes (si `superficie_pared_m2 > 0`) — usa tarea `"REVESTIMIENTO_CERAMICO"`
-3. Alzada cocina (si `incluye_alzada_cocina and superficie_alzada_m2 > 0`) — mismo material que paredes, misma tarea
-
-Si piso y paredes usan el **mismo material**: consolidar materiales (sumar cantidades) pero mantener MO separada.
-
+**Fórmulas en `calcular()`:**
 ```python
-# Consolidar: si material_piso == material_pared, sumar cant del material en una sola partida
-# Pero mantener partidas de MO separadas (piso vs paredes tienen precio distinto)
+sup = Decimal(str(params.superficie_m2))
+es_porc = "porcelanato" in params.material
+m2_por_bolsa = ADHESIVO_PORC_M2_POR_BOLSA if es_porc else ADHESIVO_M2_POR_BOLSA
+
+# Material con 10% desperdicio
+cant_mat = _q(sup * rendimiento(datos, CODIGO_MATERIAL[params.material], Decimal("1.10")))
+
+# Adhesivo
+cant_adhesivo = Decimal(ceil(sup / m2_por_bolsa))
+
+# Pastina
+cant_junta = Decimal(ceil(sup / JUNTA_M2_POR_KG))
+
+# MO piso
+p_mo = precio_mano_obra(datos, "PISO_CERAMICO")
+costo_mo = _q(p_mo * sup)
+
+# Zócalo (opcional)
+if params.incluye_zocalo and params.perimetro_m > 0:
+    perim = Decimal(str(params.perimetro_m))
+    cant_zocalo = _q(perim * rendimiento(datos, "ZOCALO_CERAMICO", Decimal("1.05")))
+    # MO zócalo: misma tarifa que piso por ml
+    costo_mo_zoc = _q(p_mo * perim * Decimal("0.3"))  # 30% del precio piso por ml
 ```
 
-`metadata` debe incluir: `superficie_piso_m2`, `superficie_pared_m2`, `material_piso`, `material_pared`, `incluye_alzada_cocina`.
+**Partidas (en este orden):**
+1. Material de piso (m2, material)
+2. Adhesivo (u/bolsa, material)
+3. Pastina/junta (kg, material)
+4. Zócalo cerámico (ml, material) — solo si `incluye_zocalo`
+5. Mano de obra colocación piso (m2, mano_obra)
+6. Mano de obra zócalo (ml, mano_obra) — solo si `incluye_zocalo`
 
-`accion = "revestimiento_banio"`. Registrar.
+`accion = "piso_ceramico"`. Registrar.
 
-**Tests `tests/rubros/test_revestimiento_banio.py`:**
-```python
-def test_banio_piso_y_paredes_distinto_material():
-    # piso=6m2 porcelanato, paredes=18m2 cerámico 25x35
-    r = _calc(superficie_piso_m2=6, superficie_pared_m2=18,
-              material_piso="porcelanato_60x60", material_pared="ceramico_pared_25x35")
-    assert r.metadata["superficie_piso_m2"] == 6.0
-    partidas_mat = [p for p in r.partidas if p.categoria == "material"]
-    partidas_mo  = [p for p in r.partidas if p.categoria == "mano_obra"]
-    assert len(partidas_mo) == 2  # una para piso, otra para paredes
+**`metadata`:** `superficie_m2`, `material`, `incluye_zocalo`, `perimetro_m`
 
-def test_cocina_con_alzada():
-    r = _calc(superficie_piso_m2=10, superficie_pared_m2=8,
-              material_piso="porcelanato_60x60", material_pared="ceramico_pared_25x35",
-              incluye_alzada_cocina=True, superficie_alzada_m2=2.5)
-    assert r.metadata["incluye_alzada_cocina"] is True
-
-def test_sin_superficie_falla():
-    with pytest.raises(ValueError):
-        ParamsRevestimientoBanio(superficie_piso_m2=0, superficie_pared_m2=0)
-
-def test_invariante_suma_igual_total()
-def test_propiedad_idempotencia()  # hypothesis
-```
-
-3 casos golden: baño completo, cocina con alzada, solo piso (local comercial).
+**Tests: `tests/rubros/test_piso_ceramico.py`**
+- `test_piso_ceramico_sin_zocalo`: superficie_m2=20, material="ceramico_45x45"
+- `test_piso_con_zocalo`: superficie_m2=20, incluye_zocalo=True, perimetro_m=18
+- `test_porcelanato_usa_adhesivo_flexible`: material="porcelanato_60x60" → adhesivo es ADHESIVO_PORCELANATO
+- `test_sin_zocalo_no_genera_partida_zocalo`: incluye_zocalo=False → no hay partida con "zócalo"
+- `test_invariante_suma_igual_total`
+- `test_idempotencia` (hypothesis)
+- 3 golden cases: ceramico 20m2, porcelanato 15m2, ceramico 30m2 con zócalo
 
 ---
 
-## TAREA 8 — Actualizar Registry y prompts
+## TAREA 3 — Actualizar registry y prompts
+
+### `src/rubros/categorias.py`
+
+Actualizar `terminaciones` con los nuevos rubros:
+```python
+"terminaciones": ["revoque_grueso", "revoque_fino", "piso_ceramico", "revestimiento_banio"],
+```
 
 ### `src/rubros/__init__.py`
 
-Reemplazar la línea de imports por:
+Agregar imports:
 ```python
-from src.rubros import (  # noqa: F401
-    techo_chapa,
-    cubierta_tejas,
-    mamposteria,
-    losa,
-    contrapiso,
-    revoque_grueso,
-    piso_ceramico,
-    revestimiento_banio,
-)
+from src.rubros import revoque_fino, piso_ceramico  # noqa: F401
 ```
 
 ### `src/orquestador/prompts.py` — `SYSTEM_PROMPT`
 
-Agregar en la sección "Acciones disponibles" (formato idéntico al existente):
+Agregar en la sección "Acciones disponibles":
 
 ```
-3. "mamposteria":
-   - largo: float (m), alto: float (m)
-   - tipo: "hueco_12" | "hueco_18" | "comun"
+9. "revoque_fino":
+   - superficie_m2: float
+   - espesor_cm: float (default 0.5)
 
-4. "losa":
-   - ancho: float (m), largo: float (m), espesor_cm: float (default 12)
-
-5. "contrapiso":
-   - superficie_m2: float, espesor_cm: float (default 8)
-
-6. "revoque_grueso":
-   - superficie_m2: float, espesor_cm: float (default 1.5)
-
-7. "cubierta_tejas":
-   - ancho: float, largo: float
-   - tipo_teja: "ceramica_colonial" | "cemento"
-   - pendiente_pct: float (default 30)
-
-8. "revestimiento_banio":
-   - superficie_piso_m2: float (0 si no aplica)
-   - superficie_pared_m2: float (0 si no aplica)
-   - material_piso: "porcelanato_60x60" | "porcelanato_60x60_premium" | "ceramico_30x30" | "ceramico_45x45"
-   - material_pared: "porcelanato_60x60" | "porcelanato_60x60_premium" | "ceramico_pared_25x35" | "ceramico_30x30"
-   - incluye_alzada_cocina: bool (default false)
-   - superficie_alzada_m2: float (default 0)
+10. "piso_ceramico":
+    - superficie_m2: float
+    - material: "ceramico_30x30" | "ceramico_45x45" | "porcelanato_60x60" | "porcelanato_60x60_premium"
+    - incluye_zocalo: bool (default false)
+    - perimetro_m: float (metros lineales de zócalo, default 0)
 ```
-
-Agregar también ejemplos few-shot para los nuevos rubros en el system prompt.
 
 ---
 
-## TAREA 9 — Verificación final
+## TAREA 4 — Verificación final
 
 ```bash
-# Instalar deps
-pip install -e ".[dev]"
+# Todos los tests deben pasar
+python3 -m pytest tests/ -q
+# Resultado esperado: >= 120 passed
 
-# Tests unitarios (deben pasar TODOS)
-pytest -q
+# Registry debe incluir los nuevos rubros
+python3 -c "from src.rubros import REGISTRY; print(list(REGISTRY.keys()))"
+# Debe incluir: [..., 'revoque_fino', 'piso_ceramico']
 
-# Golden dataset (debe mostrar todos ✅)
-python -m scripts.correr_golden --strict
-
-# Smoke test: crear nueva empresa con el CLI
-python -m scripts.nueva_empresa "Estudio Test" --id estudio_test
-
-# Verificar que el nuevo rubro está en el registry
-python -c "from src.rubros import REGISTRY; print(list(REGISTRY.keys()))"
-# Debe imprimir: ['techo_chapa', 'cubierta_tejas', 'mamposteria', 'losa', 'contrapiso', 'revoque_grueso', 'piso_ceramico', 'revestimiento_banio']
+# Smoke test por rubro nuevo
+python3 -c "
+import src.rubros
+from src.rubros.base import REGISTRY
+r = REGISTRY['revoque_fino'].calcular(
+    __import__('src.rubros.revoque_fino', fromlist=['ParamsRevoqueFino']).ParamsRevoqueFino(superficie_m2=20),
+    'estudio_ramos'
+)
+print('revoque_fino total:', r.total)
+r2 = REGISTRY['piso_ceramico'].calcular(
+    __import__('src.rubros.piso_ceramico', fromlist=['ParamsPisoCeramico']).ParamsPisoCeramico(superficie_m2=20),
+    'estudio_ramos'
+)
+print('piso_ceramico total:', r2.total)
+"
 ```
 
-Si algún test golden falla por precio incorrecto, corregir el `esperado.total` en `casos.yaml` con el cálculo manual. **No cambiar las fórmulas para que el test pase.**
-
-Hacer commit final:
+Hacer commit:
 ```
-feat: Fase 2 — rubros mampostería, losa, contrapiso, revoque, tejas, revestimientos + two-stage routing
+feat: Fase 3 — revoque_fino, piso_ceramico, categorias actualizadas
 ```
 
 ---
 
-## Notas de dominio importantes (NO ignorar)
+## Notas de dominio — Fase 3
 
-- **Plastificante**: Hercal o Plasticor (son lo mismo). Código: `PLASTIFICANTE_HERCAL`. Se usa en mampostería, losa y revoques. **Cal hidráulica eliminada.**
-- **Revestimiento baño/cocina**: piso y paredes pueden ser materiales distintos. El rubro `revestimiento_banio` maneja ambos en una sola llamada.
-- **Alzada de cocina**: es el zócalo alto de la mesada. Parámetro opcional `incluye_alzada_cocina`.
-- **Pendiente en tejas**: afecta la superficie real de material — calcular siempre con el factor de pendiente.
-- **Decimal, no float**: todo cálculo monetario usa `Decimal`. Ver `_q()` en `techo_chapa.py`.
+- **Revoque fino**: se aplica sobre revoque grueso ya seco. Usa yeso fino + arena fina + plastificante. Espesor típico 5mm.
+- **Arena fina vs gruesa**: el revoque fino usa arena fina (más tamizada). Si no existe `ARENA_FINA` en el CSV de la empresa, usar `ARENA_GRUESA` como fallback con advertencia.
+- **Piso cerámico standalone**: cubre solo pisos (living, cocina, baño solo piso). Para baño completo (piso + paredes) usar `revestimiento_banio`.
+- **Zócalo**: es opcional. Solo genera partidas si `incluye_zocalo=True` y `perimetro_m > 0`.
+- **Desperdicio estándar**: 10% para todos los materiales de piso.
