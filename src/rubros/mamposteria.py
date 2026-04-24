@@ -51,7 +51,7 @@ class CalcMamposteria:
     @staticmethod
     def calcular(params: ParamsMamposteria, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
-        m2 = params.largo * params.alto
+        m2 = Decimal(str(params.largo * params.alto))
 
         cod_ladrillo = CODIGO_LADRILLO[params.tipo]
         cod_mo = CODIGO_TAREA_MO[params.tipo]
