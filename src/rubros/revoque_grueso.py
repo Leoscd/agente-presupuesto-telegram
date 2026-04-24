@@ -40,7 +40,7 @@ class CalcRevoqueGrueso:
         costo_mo = p_mo * supm2
 
         partidas = [
-            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
+            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="bolsa", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
             Partida(concepto="Arena gruesa", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), subtotal=cant_arena * precio_material(datos, "ARENA_GRUESA"), categoria="material"),
             Partida(concepto="Plastificante Hercal", cantidad=cant_plast, unidad="u", precio_unitario=precio_material(datos, "PLASTIFICANTE_HERCAL"), subtotal=cant_plast * precio_material(datos, "PLASTIFICANTE_HERCAL"), categoria="material"),
             Partida(concepto="MO revoque grueso", cantidad=supm2, unidad="m2", precio_unitario=p_mo, subtotal=costo_mo, categoria="mano_obra"),

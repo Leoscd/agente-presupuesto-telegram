@@ -51,7 +51,7 @@ class CalcMamposteria:
     @staticmethod
     def calcular(params: ParamsMamposteria, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
-        m2 = Decimal(str(params.largo * params.alto))
+        m2 = params.largo * params.alto
 
         cod_ladrillo = CODIGO_LADRILLO[params.tipo]
         cod_mo = CODIGO_TAREA_MO[params.tipo]
@@ -65,7 +65,7 @@ class CalcMamposteria:
 
         partidas = [
             Partida(concepto=f"Ladrillo {params.tipo}", cantidad=cant_ladrillos, unidad="u", precio_unitario=precio_material(datos, cod_ladrillo), subtotal=cant_ladrillos * precio_material(datos, cod_ladrillo), categoria="material"),
-            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
+            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="bolsa", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
             Partida(concepto="Plastificante Hercal", cantidad=cant_plastificante, unidad="u", precio_unitario=precio_material(datos, "PLASTIFICANTE_HERCAL"), subtotal=cant_plastificante * precio_material(datos, "PLASTIFICANTE_HERCAL"), categoria="material"),
             Partida(concepto="Arena gruesa", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), subtotal=cant_arena * precio_material(datos, "ARENA_GRUESA"), categoria="material"),
             Partida(concepto="MO mampostería", cantidad=m2d, unidad="m2", precio_unitario=precio_mano_obra(datos, cod_mo), subtotal=costo_mo, categoria="mano_obra"),

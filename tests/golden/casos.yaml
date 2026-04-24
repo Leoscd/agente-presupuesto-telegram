@@ -52,89 +52,190 @@
     # tornillos=9*12=108*45=4860; mo=9*4200=37800; total=110880+40320+4860+37800=193860
     total: 193860.00
 
-- id: mamposteria_001
-  descripcion: "muro hueco 12 de 5x3 — caso testigo"
+- id: mamp_001
+  descripcion: "mampostería ladrillo hueco 12 — muro 5x3m"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
   accion: mamposteria
   parametros:
     largo: 5
     alto: 3
     tipo: hueco_12
   esperado:
+    # m2=15; ladrillos=ceil(15*36*1.05)=567; cemento=ceil(15/10)=2; plast=1; arena=0.45
+    # sub_mat=567*520+2*12500+1*18500+0.45*38000=294840+25000+18500+17100=355440 (ladrillo=294840)
+    # sub_mo=8500*15=127500; total=482940
     total: 482940.00
-    tolerancia_pct: 0.1
-    partidas_minimas: 5
 
-- id: mamposteria_002
-  descripcion: "muro hueco 18 de 4x2.8"
+- id: mamp_002
+  descripcion: "mampostería ladrillo hueco 18 — muro 10x2.8m"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
   accion: mamposteria
   parametros:
-    largo: 4
+    largo: 10
     alto: 2.8
     tipo: hueco_18
   esperado:
-    total: 439260.00
-    tolerancia_pct: 0.1
-    partidas_minimas: 5
+    # m2=28; ladrillos=ceil(28*28*1.05)=824; cemento=3; plast=2; arena=0.84
+    # sub_mat=824*780+3*12500+2*18500+0.84*38000=642720+37500+37000+31920=749140
+    # sub_mo=11200*28=313600; total=1062740
+    total: 1062740.00
+
+- id: mamp_003
+  descripcion: "mampostería ladrillo común — muro 8x3m"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: mamposteria
+  parametros:
+    largo: 8
+    alto: 3
+    tipo: comun
+  esperado:
+    # m2=24; ladrillos=ceil(24*48*1.08)=1245 (rend LADRILLO_COMUN=1.08); cemento=3; plast=1; arena=0.72
+    # sub_mat=1245*180+3*12500+1*18500+0.72*38000=224100+37500+18500+27360=307460
+    # sub_mo=9800*24=235200; total=542660
+    total: 542660.00
 
 - id: losa_001
-  descripcion: "losa 4x5 espesor 12cm"
+  descripcion: "losa hormigón armado 4x5m espesor 12cm"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
   accion: losa
   parametros:
     ancho: 4
     largo: 5
     espesor_cm: 12
   esperado:
-    total: 458700.00
-    tolerancia_pct: 0.1
+    # m2=20, m3=2.40; cemento=17; arena=1.08; piedra=1.56; hierro8=24; plast=1
+    # sub_mat=17*12500+1.08*38000+1.56*45000+24*9500+1*18500=570240
+    # sub_mo=28500*20=570000; total=1140240
+    total: 1140240.00
 
-- id: contrapiso_001
-  descripcion: "contrapiso 20m2 espesor 8cm"
+- id: losa_002
+  descripcion: "losa hormigón armado 6x8m espesor 15cm"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
+  accion: losa
+  parametros:
+    ancho: 6
+    largo: 8
+    espesor_cm: 15
+  esperado:
+    # m2=48, m3=7.20; cemento=51; arena=3.24; piedra=4.68; hierro8=58; plast=1
+    # sub_mat=51*12500+3.24*38000+4.68*45000+58*9500+1*18500=1540720
+    # sub_mo=28500*48=1368000; total=2908720
+    total: 2908720.00
+
+- id: losa_003
+  descripcion: "losa hormigón armado 3x4m espesor 8cm (mínimo)"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: losa
+  parametros:
+    ancho: 3
+    largo: 4
+    espesor_cm: 8
+  esperado:
+    # m2=12, m3=0.96; cemento=7; arena=0.43; piedra=0.62; hierro8=15; plast=1
+    # sub_mat=7*12500+0.43*38000+0.62*45000+15*9500+1*18500=292740
+    # sub_mo=28500*12=342000; total=634740
+    total: 634740.00
+
+- id: cont_001
+  descripcion: "contrapiso hormigón 20m2 espesor 8cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
   accion: contrapiso
   parametros:
     superficie_m2: 20
     espesor_cm: 8
   esperado:
-    total: 189600.00
-    tolerancia_pct: 0.1
+    # m3=1.60; cemento=7; arena=0.88; piedra=1.04
+    # sub_mat=7*12500+0.88*38000+1.04*45000=87500+33440+46800=167740
+    # sub_mo=4500*20=90000; total=257740
+    total: 257740.00
 
-- id: revoque_001
-  descripcion: "revoque Grueso 30m2 espesor 1.5cm"
+- id: cont_002
+  descripcion: "contrapiso hormigón 50m2 espesor 10cm"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
+  accion: contrapiso
+  parametros:
+    superficie_m2: 50
+    espesor_cm: 10
+  esperado:
+    # m3=5.00; cemento=20; arena=2.75; piedra=3.25
+    # sub_mat=20*12500+2.75*38000+3.25*45000=250000+104500+146250=500750
+    # sub_mo=4500*50=225000; total=725750
+    total: 725750.00
+
+- id: revg_001
+  descripcion: "revoque grueso 30m2 espesor 1.5cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
   accion: revoque_grueso
   parametros:
     superficie_m2: 30
     espesor_cm: 1.5
   esperado:
-    total: 156600.00
-    tolerancia_pct: 0.1
+    # m3=0.450; cemento=ceil(0.450/0.035)=13; arena=1.35; plast=max(1,ceil(30/30))=1
+    # sub_mat=13*12500+1.35*38000+1*18500=162500+51300+18500=232300
+    # sub_mo=3200*30=96000; total=328300
+    total: 328300.00
 
-- id: cubierta_tejas_001
-  descripcion: "cubierta teja ceramica 5x8 30% pendiente"
+- id: revg_002
+  descripcion: "revoque grueso 60m2 espesor 2.0cm"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
+  accion: revoque_grueso
+  parametros:
+    superficie_m2: 60
+    espesor_cm: 2.0
+  esperado:
+    # m3=1.200; cemento=ceil(1.200/0.035)=35; arena=3.60; plast=max(1,ceil(60/30))=2
+    # sub_mat=35*12500+3.60*38000+2*18500=437500+136800+37000=611300
+    # sub_mo=3200*60=192000; total=803300
+    total: 803300.00
+
+- id: cub_001
+  descripcion: "cubierta tejas cerámicas colonial 5x8m pendiente 30%"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
   accion: cubierta_tejas
   parametros:
     ancho: 5
     largo: 8
-    pendiente_pct: 30
     tipo_teja: ceramica_colonial
+    pendiente_pct: 30
   esperado:
-    total: 285600.00
-    tolerancia_pct: 0.1
+    # factor=sqrt(1+0.09)≈1.044031; m2_real=41.76
+    # cant_tejas=ceil(41.76*16*1.10)=735; listones=51; cumbreras=27
+    # sub_mat=735*850+51*4800+27*1200=624750+244800+32400=901950
+    # sub_mo=6500*41.76=271440; total=1173390
+    total: 1173390.00
 
-- id: revestimiento_001
-  descripcion: "bano porcelanato 6m2 piso + 18m2 pared ceramico"
+- id: cub_002
+  descripcion: "cubierta tejas de cemento 6x10m pendiente 25%"
   empresa: estudio_ramos
-  fecha_precios: 2026-04-24
+  fecha_precios: 2026-04-23
+  accion: cubierta_tejas
+  parametros:
+    ancho: 6
+    largo: 10
+    tipo_teja: cemento
+    pendiente_pct: 25
+  esperado:
+    # factor=sqrt(1+0.0625)≈1.030776; m2_real=61.85
+    # cant_tejas=ceil(61.85*12*1.10)=817; listones=75; cumbreras=34
+    # sub_mat=817*620+75*4800+34*1200=506540+360000+40800=907340
+    # sub_mo=6500*61.85=402025; total=1309365
+    total: 1309365.00
+
+- id: banio_001
+  descripcion: "baño completo — piso porcelanato 6m2 + paredes cerámico 18m2"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
   accion: revestimiento_banio
   parametros:
     superficie_piso_m2: 6
@@ -142,5 +243,40 @@
     material_piso: porcelanato_60x60
     material_pared: ceramico_pared_25x35
   esperado:
+    # Piso: mat=6.60m2*22500+2*12500+2*1800=148500+25000+3600=177100; mo=6800*6=40800
+    # Pared: mat=19.80m2*14500+5*8500+6*1800=287100+42500+10800=340400; mo=7800*18=140400
+    # sub_mat=517500; sub_mo=181200; total=698700
     total: 698700.00
-    tolerancia_pct: 0.1
+
+- id: banio_002
+  descripcion: "baño — piso y paredes mismo material (porcelanato, consolidado)"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: revestimiento_banio
+  parametros:
+    superficie_piso_m2: 6
+    superficie_pared_m2: 18
+    material_piso: porcelanato_60x60
+    material_pared: porcelanato_60x60
+  esperado:
+    # Consolidado: 26.40m2*22500=594000; adh_piso=2*12500; jun_piso=2*1800
+    # adh_pared=6*12500; jun_pared=6*1800
+    # sub_mat=594000+25000+3600+75000+10800=708400; sub_mo=181200; total=889600
+    total: 889600.00
+
+- id: banio_003
+  descripcion: "cocina con alzada — piso 6m2 + paredes 18m2 + alzada 2.5m2"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-23
+  accion: revestimiento_banio
+  parametros:
+    superficie_piso_m2: 6
+    superficie_pared_m2: 18
+    material_piso: porcelanato_60x60
+    material_pared: ceramico_pared_25x35
+    incluye_alzada_cocina: true
+    superficie_alzada_m2: 2.5
+  esperado:
+    # Alzada: 2.75m2*14500+1*8500+1*1800=39875+8500+1800=50175; mo=7800*2.5=19500
+    # sub_mat=177100+340400+50175=567675; sub_mo=40800+140400+19500=200700; total=768375
+    total: 768375.00

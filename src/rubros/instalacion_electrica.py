@@ -103,7 +103,9 @@ class CalcInstalacionElectrica:
             categoria="mano_obra"
         ))
 
-        materiales_faltantes(partidas, datos)
+        faltantes = materiales_faltantes(datos, ["CABLE_IRAM_2X2_5", "CANO_CORRUGADO_20", "TOMACORRIENTE_2P"])
+        if faltantes:
+            raise ValueError(f"Materiales no disponibles en {empresa_id}: {', '.join(faltantes)}")
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))

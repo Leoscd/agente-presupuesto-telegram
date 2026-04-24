@@ -38,7 +38,7 @@ class CalcContrapiso:
         costo_mo = precio_mano_obra(datos, "CONTRAPISO") * Decimal(str(params.superficie_m2))
 
         partidas = [
-            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="u", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
+            Partida(concepto="Cemento portland", cantidad=cant_cemento, unidad="bolsa", precio_unitario=precio_material(datos, "CEMENTO_PORTLAND"), subtotal=cant_cemento * precio_material(datos, "CEMENTO_PORTLAND"), categoria="material"),
             Partida(concepto="Arena gruesa", cantidad=cant_arena, unidad="m3", precio_unitario=precio_material(datos, "ARENA_GRUESA"), subtotal=cant_arena * precio_material(datos, "ARENA_GRUESA"), categoria="material"),
             Partida(concepto="Piedra partida", cantidad=cant_piedra, unidad="m3", precio_unitario=precio_material(datos, "PIEDRA_6_12"), subtotal=cant_piedra * precio_material(datos, "PIEDRA_6_12"), categoria="material"),
             Partida(concepto="MO contrapiso", cantidad=Decimal(str(params.superficie_m2)), unidad="m2", precio_unitario=precio_mano_obra(datos, "CONTRAPISO"), subtotal=costo_mo, categoria="mano_obra"),

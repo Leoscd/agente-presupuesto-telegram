@@ -82,23 +82,56 @@ class CalcRevestimientoBanio:
     @staticmethod
     def calcular(params: ParamsRevestimientoBanio, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
-        partidas = []
+        partidas: list[Partida] = []
+
         if params.superficie_piso_m2 > 0:
-            partidas.extend(_partidas_superficie(params.superficie_piso_m2, params.material_piso, "PISO_CERAMICO", "Piso", datos))
+            partidas.extend(_partidas_superficie(
+                params.superficie_piso_m2, params.material_piso, "PISO_CERAMICO", "Piso", datos
+            ))
         if params.superficie_pared_m2 > 0:
-            partidas.extend(_partidas_superficie(params.superficie_pared_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Pared", datos))
+            partidas.extend(_partidas_superficie(
+                params.superficie_pared_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Pared", datos
+            ))
         if params.incluye_alzada_cocina and params.superficie_alzada_m2 > 0:
-            partidas.extend(_partidas_superficie(params.superficie_alzada_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Alzada", datos))
-        total = sum((p.subtotal for p in partidas), Decimal("0"))
+            partidas.extend(_partidas_superficie(
+                params.superficie_alzada_m2, params.material_pared, "REVESTIMIENTO_CERAMICO", "Alzada", datos
+            ))
+
+        # Consolidar material cuando piso y paredes usan el mismo código
+        if (params.superficie_piso_m2 > 0 and params.superficie_pared_m2 > 0
+                and params.material_piso == params.material_pared):
+            mat_piso = next((p for p in partidas if p.concepto == "Piso material"), None)
+            mat_pared = next((p for p in partidas if p.concepto == "Pared material"), None)
+            if mat_piso and mat_pared:
+                nueva_cant = _q(mat_piso.cantidad + mat_pared.cantidad)
+                consolidada = Partida(
+                    concepto="Piso y paredes material",
+                    cantidad=nueva_cant,
+                    unidad="m2",
+                    precio_unitario=mat_piso.precio_unitario,
+                    subtotal=_q(nueva_cant * mat_piso.precio_unitario),
+                    categoria="material",
+                )
+                partidas = [p for p in partidas if p is not mat_piso and p is not mat_pared]
+                partidas.insert(0, consolidada)
+
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
         sub_mo = sum((p.subtotal for p in partidas if p.categoria == "mano_obra"), Decimal("0"))
+        total = _q(sub_mat + sub_mo)
+
         return ResultadoPresupuesto(
             rubro="revestimiento_banio",
             partidas=partidas,
-            subtotal_materiales=sub_mat,
-            subtotal_mano_obra=sub_mo,
+            subtotal_materiales=_q(sub_mat),
+            subtotal_mano_obra=_q(sub_mo),
             total=total,
-            metadata={"superficie_piso_m2": params.superficie_piso_m2, "superficie_pared_m2": params.superficie_pared_m2},
+            metadata={
+                "superficie_piso_m2": params.superficie_piso_m2,
+                "superficie_pared_m2": params.superficie_pared_m2,
+                "material_piso": params.material_piso,
+                "material_pared": params.material_pared,
+                "incluye_alzada_cocina": params.incluye_alzada_cocina,
+            },
         )
 
 
