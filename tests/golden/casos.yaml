@@ -280,3 +280,125 @@
     # Alzada: 2.75m2*14500+1*8500+1*1800=39875+8500+1800=50175; mo=7800*2.5=19500
     # sub_mat=177100+340400+50175=567675; sub_mo=40800+140400+19500=200700; total=768375
     total: 768375.00
+
+# === TAREA 3: Golden cases revoque_fino, instalacion_electrica, instalacion_sanitaria ===
+
+- id: revf_001
+  descripcion: "Revoque fino 20m2 espesor 0.5cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: revoque_fino
+  parametros:
+    superficie_m2: 20
+    espesor_cm: 0.5
+  esperado:
+    total: 229400.00
+    partidas_clave:
+      - concepto_contiene: "yeso"
+        cantidad: 6
+        unidad: "u"
+      - concepto_contiene: "plastificante"
+        cantidad: 1
+        unidad: "u"
+
+- id: revf_002
+  descripcion: "Revoque fino 50m2 espesor 1.0cm"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: revoque_fino
+  parametros:
+    superficie_m2: 50
+    espesor_cm: 1.0
+  esperado:
+    total: 573500.00
+
+- id: elec_001
+  descripcion: "Instalacion electrica basica 50m2 con tablero"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: instalacion_electrica
+  parametros:
+    superficie_m2: 50
+    tipo: basica
+    incluye_tablero: true
+  esperado:
+    total: 485000.00
+    partidas_clave:
+      - concepto_contiene: "cable"
+        cantidad: 150
+        unidad: "ml"
+
+- id: san_001
+  descripcion: "Instalacion sanitaria 1 bano, 1 cocina"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: instalacion_sanitaria
+  parametros:
+    cantidad_banos: 1
+    cantidad_cocinas: 1
+    metros_lineales_agua_fria: 0
+    metros_lineales_desague: 0
+    tipo_cano: pvc
+  esperado:
+    total: 325000.00
+    partidas_clave:
+      - concepto_contiene: "inodoro"
+        cantidad: 1
+        unidad: "u"
+
+# === TAREA 4: Golden cases piso_ceramico ===
+
+- id: piso_001
+  descripcion: "Piso ceramico 45x45 20m2 sin zocalo"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: piso_ceramico
+  parametros:
+    superficie_m2: 20
+    material: ceramico_45x45
+    incluye_zocalo: false
+  esperado:
+    total: 466100.00
+    partidas_clave:
+      - concepto_contiene: "CERAMICO_45X45"
+        cantidad: 22
+        unidad: "m2"
+      - concepto_contiene: "ADHESIVO"
+        cantidad: 5
+        unidad: "u"
+
+- id: piso_002
+  descripcion: "Piso porcelanato 60x60 15m2 sin zocalo"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: piso_ceramico
+  parametros:
+    superficie_m2: 15
+    material: porcelanato_60x60
+    incluye_zocalo: false
+  esperado:
+    total: 489750.00
+    partidas_clave:
+      - concepto_contiene: "PORCELANATO"
+        cantidad: 17
+        unidad: "m2"
+      - concepto_contiene: "ADHESIVO"
+        cantidad: 5
+        unidad: "u"
+
+- id: piso_003
+  descripcion: "Piso ceramico 30x30 30m2 con zocalo 20ml"
+  empresa: estudio_ramos
+  fecha_precios: 2026-04-24
+  accion: piso_ceramico
+  parametros:
+    superficie_m2: 30
+    material: ceramico_30x30
+    incluye_zocalo: true
+    perimetro_m: 20
+  esperado:
+    total: 684000.00
+    partidas_clave:
+      - concepto_contiene: "zocalo"
+        cantidad: 21
+        unidad: "ml"
