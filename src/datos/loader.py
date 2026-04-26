@@ -150,7 +150,7 @@ def actualizar_precio_material(empresa_id: str, codigo: str, nuevo_precio: Decim
     mask = df["codigo"] == codigo_upper
     if not mask.any():
         # intento case-insensitive sobre descripcion
-        mask = df["descripcion"].str.upper() == codigo.upper()
+        mask = df["descripcion"].str.upper().str.contains(codigo.upper(), na=False)
         if not mask.any():
             raise MaterialNoEncontrado(f"Codigo '{codigo}' no encontrado en materiales de {empresa_id}")
     precio_anterior = Decimal(str(df.loc[mask, "precio"].iloc[0]))

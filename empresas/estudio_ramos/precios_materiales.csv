@@ -1,64 +1,64 @@
 codigo,descripcion,unidad,precio,fecha_actualizacion
-CHAPA_GALV_075,Chapa galvanizada 0.75mm sinusoidal,m2,8500.00,2026-04-23
-CHAPA_GALV_090,Chapa galvanizada 0.90mm sinusoidal,m2,10500.00,2026-04-23
-CHAPA_ZINC_075,Chapa de zinc 0.75mm,m2,9800.00,2026-04-23
-CHAPA_COLOR_075,Chapa prepintada color 0.75mm,m2,11200.00,2026-04-23
-PERFIL_C60,Perfil C 60x40x2mm,ml,3200.00,2026-04-23
-PERFIL_C100,Perfil C 100x50x2mm,ml,4800.00,2026-04-23
-PERFIL_C160,Perfil C 160x60x3mm,ml,8200.00,2026-04-23
-TORNILLO_AUTOP,Tornillo autoperforante chapa,u,45.00,2026-04-23
-SELLADOR_POLIUR,Sellador poliuretánico cartucho,u,6500.00,2026-04-23
-LADRILLO_COMUN,Ladrillo común,u,180.00,2026-04-23
-LADRILLO_HUECO_12,Ladrillo hueco 12cm,u,520.00,2026-04-23
-LADRILLO_HUECO_18,Ladrillo hueco 18cm,u,780.00,2026-04-23
-CEMENTO_PORTLAND,Cemento portland bolsa 50kg,u,12500.00,2026-04-23
-PLASTIFICANTE_HERCAL,Plastificante Hercal/Plasticor bidon 20L,u,18500.00,2026-04-23
-ARENA_GRUESA,Arena gruesa m3,m3,38000.00,2026-04-23
-ARENA_FINA,Arena fina m3,m3,42000.00,2026-04-23
-HIERRO_8,Hierro nervado 8mm barra 12m,u,9500.00,2026-04-23
-HIERRO_10,Hierro nervado 10mm barra 12m,u,14800.00,2026-04-23
-HIERRO_12,Hierro nervado 12mm barra 12m,u,21200.00,2026-04-23
-PIEDRA_6_12,Piedra partida 6-12mm m3,m3,45000.00,2026-04-23
-TEJA_CERAMICA_COL,Teja cerámica colonial,u,850.00,2026-04-23
-TEJA_CEMENTO,Teja de cemento,u,620.00,2026-04-23
-LISTON_MADERA_2X3,Listón de madera 2x3 pulgadas x 3m,u,4800.00,2026-04-23
-CUMBRERA_CERAMICA,Cumbrera cerámica,u,1200.00,2026-04-23
-PORCELANATO_60X60,Porcelanato rectificado 60x60 standard,m2,22500.00,2026-04-23
-PORCELANATO_60X60_PREMIUM,Porcelanato rectificado 60x60 premium,m2,38000.00,2026-04-23
-CANO_PVC_32,Caño PVC presión 32mm barra 6m,u,8500.00,2026-04-24
-CERAMICO_PARED_25X35,Cerámico pared 25x35 esmaltado,m2,14500.00,2026-04-23
-ADHESIVO_PORCELANATO,Adhesivo flexible para porcelanato bolsa 25kg,u,12500.00,2026-04-23
-JUNTA_PORCELANATO,Pastina/junta porcelanato kg,u,1800.00,2026-04-23
-ADHESIVO_CERAMICO,Adhesivo cerámico bolsa 25kg,u,8500.00,2026-04-23
-CABLE_IRAM_2X2_5,Cable IRAM 2x2.5mm bipolar,ml,850.00,2026-04-24
-CABLE_IRAM_2X4,Cable IRAM 2x4mm bipolar,ml,1250.00,2026-04-24
-CANO_CORRUGADO_20,Caño corrugado plastico 20mm,ml,320.00,2026-04-24
-TABLERO_MONOF_12,Tablero monofasico 12 modulos,u,38000.00,2026-04-24
-LLAVE_SIMPLE,Llave simple Cambre/similar,u,4500.00,2026-04-24
-CANO_PVC_50,Caño PVC desague 50mm barra 4m,u,6800.00,2026-04-24
-CANO_PVC_110,Caño PVC desague 110mm barra 4m,u,12500.00,2026-04-24
-CODOS_PVC_32,Codo PVC 32mm 90°,u,850.00,2026-04-24
-SELLADOR_TEFLON,Cinta teflon rollo,u,350.00,2026-04-24
-CERAMICO_30X30,Ceramico piso 30x30 esmaltado,m2,9800.00,2026-04-24
-CERAMICO_45X45,Ceramico piso 45x45 esmaltado,m2,12500.00,2026-04-24
-YESO_BOLSA,Yeso bolsa 40kg,u,8500.00,2026-04-24
-TOMACORRIENTE_2P,Tomacorriente doble 2P+T Cambre/similar,u,4200.00,2026-04-24
-ZOCALO_CERAMICO,Zócalo cerámico 8x33cm,ml,3200.00,2026-04-24
-HIERRO_6,Hierro nervado 6mm barra 12m,u,4200.00,2026-04-26
-ALAMBRE_ATADO,Alambre de atar kg,kg,2800.00,2026-04-26
-TABLON_PINO,Tablón de pino 1"x12"x3m,u,5500.00,2026-04-26
-MEMBRANA_ASFALTICA,Membrana asfáltica 40kg rollo 10m2,u,28000.00,2026-04-26
-MEMBRANA_LIQUIDA,Membrana líquida balde 20kg,u,32000.00,2026-04-26
-PERFIL_IPN_120,Perfil IPN 120 barra 12m,u,185000.00,2026-04-26
-PINTURA_ANTICORR,Pintura anticorrosiva lata 4L,u,22000.00,2026-04-26
-ELECTRODO_E6013,Electrodos E6013 caja 50u,u,12500.00,2026-04-26
-PINTURA_LATEX_INT,Pintura látex interior balde 20L,u,48000.00,2026-04-26
-PINTURA_LATEX_EXT,Pintura látex exterior balde 20L,u,58000.00,2026-04-26
-PINTURA_ESMALTE,Pintura esmalte sintético balde 4L,u,24000.00,2026-04-26
-FIJADOR_SELLADOR_4L,Fijador sellador balde 4L,u,18500.00,2026-04-26
-LIJA_PAPEL,Lija al agua pliego N120,u,850.00,2026-04-26
-PLACA_DURLOCK_12,Placa Durlock 12mm 1.20x2.40m,u,8500.00,2026-04-26
-PERFIL_MONTANTE_70,Perfil montante 70mm x 3m,u,3200.00,2026-04-26
-PERFIL_SOLERA_70,Perfil solera 70mm x 3m,u,2800.00,2026-04-26
-MASILLA_DURLOCK,Masilla para Durlock bolsa 25kg,u,12500.00,2026-04-26
-TORNILLO_DURLOCK,Tornillo autoperforante Durlock bolsa 500u,u,8500.00,2026-04-26
+CHAPA_GALV_075,Chapa galvanizada 0.75mm sinusoidal,m2,8500.0,2026-04-23
+CHAPA_GALV_090,Chapa galvanizada 0.90mm sinusoidal,m2,10500.0,2026-04-23
+CHAPA_ZINC_075,Chapa de zinc 0.75mm,m2,9800.0,2026-04-23
+CHAPA_COLOR_075,Chapa prepintada color 0.75mm,m2,11200.0,2026-04-23
+PERFIL_C60,Perfil C 60x40x2mm,ml,3200.0,2026-04-23
+PERFIL_C100,Perfil C 100x50x2mm,ml,4800.0,2026-04-23
+PERFIL_C160,Perfil C 160x60x3mm,ml,8200.0,2026-04-23
+TORNILLO_AUTOP,Tornillo autoperforante chapa,u,45.0,2026-04-23
+SELLADOR_POLIUR,Sellador poliuretánico cartucho,u,6500.0,2026-04-23
+LADRILLO_COMUN,Ladrillo común,u,180.0,2026-04-23
+LADRILLO_HUECO_12,Ladrillo hueco 12cm,u,520.0,2026-04-23
+LADRILLO_HUECO_18,Ladrillo hueco 18cm,u,780.0,2026-04-23
+CEMENTO_PORTLAND,Cemento portland bolsa 50kg,u,12500.0,2026-04-26
+PLASTIFICANTE_HERCAL,Plastificante Hercal/Plasticor bidon 20L,u,18500.0,2026-04-23
+ARENA_GRUESA,Arena gruesa m3,m3,38000.0,2026-04-23
+ARENA_FINA,Arena fina m3,m3,42000.0,2026-04-23
+HIERRO_8,Hierro nervado 8mm barra 12m,u,9500.0,2026-04-23
+HIERRO_10,Hierro nervado 10mm barra 12m,u,14800.0,2026-04-23
+HIERRO_12,Hierro nervado 12mm barra 12m,u,21200.0,2026-04-23
+PIEDRA_6_12,Piedra partida 6-12mm m3,m3,45000.0,2026-04-23
+TEJA_CERAMICA_COL,Teja cerámica colonial,u,850.0,2026-04-23
+TEJA_CEMENTO,Teja de cemento,u,620.0,2026-04-23
+LISTON_MADERA_2X3,Listón de madera 2x3 pulgadas x 3m,u,4800.0,2026-04-23
+CUMBRERA_CERAMICA,Cumbrera cerámica,u,1200.0,2026-04-23
+PORCELANATO_60X60,Porcelanato rectificado 60x60 standard,m2,22500.0,2026-04-23
+PORCELANATO_60X60_PREMIUM,Porcelanato rectificado 60x60 premium,m2,38000.0,2026-04-23
+CANO_PVC_32,Caño PVC presión 32mm barra 6m,u,8500.0,2026-04-24
+CERAMICO_PARED_25X35,Cerámico pared 25x35 esmaltado,m2,14500.0,2026-04-23
+ADHESIVO_PORCELANATO,Adhesivo flexible para porcelanato bolsa 25kg,u,12500.0,2026-04-23
+JUNTA_PORCELANATO,Pastina/junta porcelanato kg,u,1800.0,2026-04-23
+ADHESIVO_CERAMICO,Adhesivo cerámico bolsa 25kg,u,8500.0,2026-04-23
+CABLE_IRAM_2X2_5,Cable IRAM 2x2.5mm bipolar,ml,850.0,2026-04-24
+CABLE_IRAM_2X4,Cable IRAM 2x4mm bipolar,ml,1250.0,2026-04-24
+CANO_CORRUGADO_20,Caño corrugado plastico 20mm,ml,320.0,2026-04-24
+TABLERO_MONOF_12,Tablero monofasico 12 modulos,u,38000.0,2026-04-24
+LLAVE_SIMPLE,Llave simple Cambre/similar,u,4500.0,2026-04-24
+CANO_PVC_50,Caño PVC desague 50mm barra 4m,u,6800.0,2026-04-24
+CANO_PVC_110,Caño PVC desague 110mm barra 4m,u,12500.0,2026-04-24
+CODOS_PVC_32,Codo PVC 32mm 90°,u,850.0,2026-04-24
+SELLADOR_TEFLON,Cinta teflon rollo,u,350.0,2026-04-24
+CERAMICO_30X30,Ceramico piso 30x30 esmaltado,m2,9800.0,2026-04-24
+CERAMICO_45X45,Ceramico piso 45x45 esmaltado,m2,12500.0,2026-04-24
+YESO_BOLSA,Yeso bolsa 40kg,u,8500.0,2026-04-24
+TOMACORRIENTE_2P,Tomacorriente doble 2P+T Cambre/similar,u,4200.0,2026-04-24
+ZOCALO_CERAMICO,Zócalo cerámico 8x33cm,ml,3200.0,2026-04-24
+HIERRO_6,Hierro nervado 6mm barra 12m,u,4200.0,2026-04-26
+ALAMBRE_ATADO,Alambre de atar kg,kg,2800.0,2026-04-26
+TABLON_PINO,"Tablón de pino 1""x12""x3m",u,5500.0,2026-04-26
+MEMBRANA_ASFALTICA,Membrana asfáltica 40kg rollo 10m2,u,28000.0,2026-04-26
+MEMBRANA_LIQUIDA,Membrana líquida balde 20kg,u,32000.0,2026-04-26
+PERFIL_IPN_120,Perfil IPN 120 barra 12m,u,185000.0,2026-04-26
+PINTURA_ANTICORR,Pintura anticorrosiva lata 4L,u,22000.0,2026-04-26
+ELECTRODO_E6013,Electrodos E6013 caja 50u,u,12500.0,2026-04-26
+PINTURA_LATEX_INT,Pintura látex interior balde 20L,u,48000.0,2026-04-26
+PINTURA_LATEX_EXT,Pintura látex exterior balde 20L,u,58000.0,2026-04-26
+PINTURA_ESMALTE,Pintura esmalte sintético balde 4L,u,24000.0,2026-04-26
+FIJADOR_SELLADOR_4L,Fijador sellador balde 4L,u,18500.0,2026-04-26
+LIJA_PAPEL,Lija al agua pliego N120,u,850.0,2026-04-26
+PLACA_DURLOCK_12,Placa Durlock 12mm 1.20x2.40m,u,8500.0,2026-04-26
+PERFIL_MONTANTE_70,Perfil montante 70mm x 3m,u,3200.0,2026-04-26
+PERFIL_SOLERA_70,Perfil solera 70mm x 3m,u,2800.0,2026-04-26
+MASILLA_DURLOCK,Masilla para Durlock bolsa 25kg,u,12500.0,2026-04-26
+TORNILLO_DURLOCK,Tornillo autoperforante Durlock bolsa 500u,u,8500.0,2026-04-26

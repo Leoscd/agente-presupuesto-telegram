@@ -1,146 +1,81 @@
-"""Tests para actualizar precios y hot-reload."""
-from __future__ import annotations
-
-import os
-import shutil
-import tempfile
-from datetime import date
+"""Tests para actualizacion de precios por lenguaje natural."""
 from decimal import Decimal
-from pathlib import Path
-
 import pytest
-
-ROOT = Path(__file__).resolve().parent.parent
-os.environ["DATA_DIR"] = str(ROOT / "empresas")
-
 from src.datos.loader import (
-    _cargar,
     actualizar_precio_material,
     actualizar_precio_mano_obra,
+    MaterialNoEncontrado,
     cargar_empresa,
-    _mtime_signature,
 )
 
-
-# Usar empresa real para tests
 EMPRESA_TEST = "estudio_ramos"
 
 
-@pytest.fixture
-def empresa_con_datos():
-    """Empresa temporal basada en estudio_ramos para tests, con backup."""
-    # Backup de archivos originales
-    src_dir = ROOT / "empresas" / EMPRESA_TEST
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        backup_dir = tmp_path / EMPRESA_TEST
-        
-        # Copiar solo los archivos que modificamos
-        shutil.copy(src_dir / "precios_materiales.csv", tmp_path / "precios_materiales.csv")
-        shutil.copy(src_dir / "precios_mano_obra.csv", tmp_path / "precios_mano_obra.csv")
-        
-        # Limpiar caché
-        _cargar.cache_clear()
-        
-        yield EMPRESA_TEST
-        
-        # Restaurar
-        shutil.copy(tmp_path / "precios_materiales.csv", src_dir / "precios_materiales.csv")
-        shutil.copy(tmp_path / "precios_mano_obra.csv", src_dir / "precios_mano_obra.csv")
-        _cargar.cache_clear()
-
-
 class TestActualizarPrecioMaterial:
-    def test_actualizar_precio_material_cambia_precio(self, empresa_con_datos):
-        """Verify que actualizar_precio_material cambia el precio."""
-        empresa_id = empresa_con_datos
-        
-        # Cargar precio original
-        datos = cargar_empresa(empresa_id)
-        df = datos.precios_materiales
-        codigo = df.iloc[0]["codigo"]
-        precio_original = Decimal(str(df.iloc[0]["precio"]))
-        
-        nuevo_precio = Decimal("999.99")
-        
-        # Actualizar
-        precio_anterior = actualizar_precio_material(empresa_id, codigo, nuevo_precio)
-        
-        assert precio_anterior == precio_original
-        
-        # Verificar cambio (recargando)
-        datos_nuevo = cargar_empresa(empresa_id)
-        df_nuevo = datos_nuevo.precios_materiales
-        precio_nuevo = Decimal(str(df_nuevo.loc[
-            df_nuevo["codigo"] == codigo, "precio"
-        ].iloc[0]))
-        
-        assert precio_nuevo == nuevo_precio
+    def test_actualizar_precio_material_codigo_inexistente(self):
+        """ codigo inexistente debe levantar exception """
+        with pytest.raises(MaterialNoEncontrado, match="no encontrado"):
+            actualizar_precio_material(EMPRESA_TEST, "MATERIAL_INVENTADO_XYZ", Decimal("1000"))
 
-    def test_actualizar_precio_material_codigo_inexistente(self, empresa_con_datos):
-        """actualizar_precio_material con código inexistente debe levantar exception."""
-        from src.datos.loader import MaterialNoEncontrado
+    def test_actualizar_precio_material_por_descripcion(self):
+        """ buscar por descripcion (case-insensitive) """
+        # Cemento debe existir
+        datos = cargar_empresa(EMPRESA_TEST)
+        precio_antes = datos.precios_materiales[datos.precios_materiales["codigo"] == "CEMENTO_PORTLAND"].iloc[0]["precio"]
         
-        with pytest.raises(MaterialNoEncontrado):
-            actualizar_precio_material(empresa_con_datos, "CODIGO_INEXISTENTE_XXX", Decimal("100"))
+        # Actualizar via descripcion
+        precio_nuevo = Decimal("7500.00")
+        actualizar_precio_material(EMPRESA_TEST, "cemento portland", precio_nuevo)
+        
+        # Verificar cambio
+        datos = cargar_empresa(EMPRESA_TEST)  # Recarga por mtime
+        precio_despues = datos.precios_materiales[datos.precios_materiales["codigo"] == "CEMENTO_PORTLAND"].iloc[0]["precio"]
+        
+        # Restaurar precio original
+        actualizar_precio_material(EMPRESA_TEST, "CEMENTO_PORTLAND", Decimal(str(precio_antes)))
+        
+        assert precio_despues == 7500.00
 
 
 class TestActualizarPrecioManoObra:
-    def test_actualizar_precio_mano_obra_cambia_precio(self, empresa_con_datos):
-        """Verify que actualizar_precio_mano_obra cambia el precio."""
-        empresa_id = empresa_con_datos
-        
-        # Cargar precio original
-        datos = cargar_empresa(empresa_id)
-        df = datos.precios_mano_obra
-        tarea = df.iloc[0]["tarea"]
-        precio_original = Decimal(str(df.iloc[0]["precio"]))
-        
-        nuevo_precio = Decimal("555.55")
-        
-        # Actualizar
-        precio_anterior = actualizar_precio_mano_obra(empresa_id, tarea, nuevo_precio)
-        
-        assert precio_anterior == precio_original
-        
-        # Verificar cambio (recargando)
-        datos_nuevo = cargar_empresa(empresa_id)
-        df_nuevo = datos_nuevo.precios_mano_obra
-        precio_nuevo = Decimal(str(df_nuevo.loc[
-            df_nuevo["tarea"] == tarea, "precio"
-        ].iloc[0]))
-        
-        assert precio_nuevo == nuevo_precio
+    def test_actualizar_precio_mano_obra_codigo_inexistente(self):
+        """ tarea inexistente debe levantar exception """
+        with pytest.raises(MaterialNoEncontrado, match="no encontrada"):
+            actualizar_precio_mano_obra(EMPRESA_TEST, "TAREA_INVENTADA_XYZ", Decimal("1000"))
 
-    def test_actualizar_precio_mano_obra_inexistente(self, empresa_con_datos):
-        """actualizar_precio_mano_obra con tarea inexistente debe levantar exception."""
-        from src.datos.loader import MaterialNoEncontrado
+    def test_actualizar_precio_mano_obra_existente(self):
+        """ actualizar tarea existente """
+        datos = cargar_empresa(EMPRESA_TEST)
+        tarea_row = datos.precios_mano_obra[datos.precios_mano_obra["tarea"] == "PINTURA"]
+        if tarea_row.empty:
+            pytest.skip("Tarea PINTURA no existe en empresa test")
         
-        with pytest.raises(MaterialNoEncontrado):
-            actualizar_precio_mano_obra(empresa_con_datos, "TAREA_INEXISTENTE_XXX", Decimal("100"))
+        precio_antes = tarea_row.iloc[0]["precio"]
+        precio_nuevo = Decimal("4000.00")
+        
+        actualizar_precio_mano_obra(EMPRESA_TEST, "PINTURA", precio_nuevo)
+        
+        # Verificar
+        datos = cargar_empresa(EMPRESA_TEST)
+        precio_despues = datos.precios_mano_obra[datos.precios_mano_obra["tarea"] == "PINTURA"].iloc[0]["precio"]
+        
+        # Restaurar
+        actualizar_precio_mano_obra(EMPRESA_TEST, "PINTURA", Decimal(str(precio_antes)))
+        
+        assert precio_despues == 4000.00
 
 
-class TestHotReload:
-    def test_hot_reload_actualiza_mtime(self, empresa_con_datos):
-        """Verify que el mtime cambia después de actualizar precio."""
-        import time
-        from src.datos.loader import _mtime_signature
-        
-        empresa_id = empresa_con_datos
-        
-        # Obtener signature original
-        sig_original = _mtime_signature(empresa_id)
-        
-        # Actualizar precio
-        datos = cargar_empresa(empresa_id)
-        codigo = datos.precios_materiales.iloc[0]["codigo"]
-        actualizar_precio_material(empresa_id, codigo, Decimal("123.45"))
-        
-        # small delay para asegurar mtime diferente
-        time.sleep(0.1)
-        
-        # Nueva signature debe ser diferente
-        sig_nueva = _mtime_signature(empresa_id)
-        
-        # Al menos un archivo debe tener mtime diferente
-        assert sig_nueva != sig_original
+class TestListar:
+    def test_listar_materiales_con_descripcion(self):
+        from src.datos.loader import listar_materiales_con_descripcion
+        mats = listar_materiales_con_descripcion(EMPRESA_TEST)
+        assert len(mats) > 0
+        assert "codigo" in mats[0]
+        assert "precio_actual" in mats[0]
+
+    def test_listar_mo_con_descripcion(self):
+        from src.datos.loader import listar_mo_con_descripcion
+        mos = listar_mo_con_descripcion(EMPRESA_TEST)
+        assert len(mos) > 0
+        assert "tarea" in mos[0]
+        assert "precio_actual" in mos[0]

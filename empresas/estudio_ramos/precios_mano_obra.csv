@@ -1,24 +1,24 @@
 tarea,descripcion,unidad,precio,equipo_minimo
-TECHO_CHAPA,Colocación de chapa con perfilería,m2,4200.00,2
-MAMPOSTERIA_HUECO_12,Mampostería ladrillo hueco 12cm,m2,8500.00,2
-MAMPOSTERIA_HUECO_18,Mampostería ladrillo hueco 18cm,m2,11200.00,2
-MAMPOSTERIA_COMUN,Mampostería ladrillo común,m2,9800.00,2
-LOSA_HORMIGON,Losa de hormigón armado H21,m2,28500.00,3
-REVOQUE_GRUESO,Revoque grueso interior,m2,3200.00,2
-REVOQUE_FINO,Revoque fino interior,m2,2800.00,2
-CONTRAPISO,Contrapiso de hormigón,m2,4500.00,2
-PISO_CERAMICO,Colocación piso cerámico,m2,6800.00,2
-REVESTIMIENTO_CERAMICO,Colocación revestimiento cerámico paredes,m2,7800.00,2
-CUBIERTA_TEJAS,Colocación cubierta de tejas,m2,6500.00,2
-COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.00,
-VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.00,
-FUNDACION,Hormigonado fundaciones,m3,65000.00,
-ESCALERA_HORMIGON,Escalera de hormigon armado,u,185000.00,
-PINTURA,Pintura interior o exterior por m2,m2,3500.00,
-CIELORRASO_DURLOCK,Colocacion cielorraso Durlock,m2,8500.00,
-MEMBRANA_IMPERMEAB,Colocacion membrana impermeabilizante,m2,5500.00,
-ESTRUCTURA_METALICA,Montaje estructura metalica,ml,18000.00,
-INSTALACION_ELECTRICA,Instalacion electrica completa,m2,8500.00,2
-INSTALACION_SANITARIA,Instalacion sanitaria completa,u,85000.00,2
-COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.00,
-VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.00,
+TECHO_CHAPA,Colocación de chapa con perfilería,m2,4200.0,2.0
+MAMPOSTERIA_HUECO_12,Mampostería ladrillo hueco 12cm,m2,8500.0,2.0
+MAMPOSTERIA_HUECO_18,Mampostería ladrillo hueco 18cm,m2,11200.0,2.0
+MAMPOSTERIA_COMUN,Mampostería ladrillo común,m2,9800.0,2.0
+LOSA_HORMIGON,Losa de hormigón armado H21,m2,28500.0,3.0
+REVOQUE_GRUESO,Revoque grueso interior,m2,3200.0,2.0
+REVOQUE_FINO,Revoque fino interior,m2,2800.0,2.0
+CONTRAPISO,Contrapiso de hormigón,m2,4500.0,2.0
+PISO_CERAMICO,Colocación piso cerámico,m2,6800.0,2.0
+REVESTIMIENTO_CERAMICO,Colocación revestimiento cerámico paredes,m2,7800.0,2.0
+CUBIERTA_TEJAS,Colocación cubierta de tejas,m2,6500.0,2.0
+COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.0,
+VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.0,
+FUNDACION,Hormigonado fundaciones,m3,65000.0,
+ESCALERA_HORMIGON,Escalera de hormigon armado,u,185000.0,
+PINTURA,Pintura interior o exterior por m2,m2,3500.0,
+CIELORRASO_DURLOCK,Colocacion cielorraso Durlock,m2,8500.0,
+MEMBRANA_IMPERMEAB,Colocacion membrana impermeabilizante,m2,5500.0,
+ESTRUCTURA_METALICA,Montaje estructura metalica,ml,18000.0,
+INSTALACION_ELECTRICA,Instalacion electrica completa,m2,8500.0,2.0
+INSTALACION_SANITARIA,Instalacion sanitaria completa,u,85000.0,2.0
+COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.0,
+VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.0,
