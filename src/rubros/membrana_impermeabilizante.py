@@ -8,12 +8,10 @@ from typing import Literal
 from pydantic import BaseModel, Field, PositiveFloat
 
 from src.datos.loader import (
-    DatosEmpresa,
     cargar_empresa,
     precio_mano_obra,
     precio_material,
 )
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -28,7 +26,8 @@ def _q(v: Decimal) -> Decimal:
 
 
 class CalcMembrana:
-    """Calculadora de impermeabilización con membrana."""
+    accion = "membrana_impermeabilizante"
+    schema_params = ParamsMembrana
 
     RENDIMIENTO = {  # m2 por unidad
         "asfaltica": Decimal("10"),
@@ -39,64 +38,56 @@ class CalcMembrana:
         "liquida": "MEMBRANA_LIQUIDA",
     }
 
-    def __init__(self, datos: DatosEmpresa):
-        self.datos = datos
-
-    def calcular(self, params: ParamsMembrana) -> ResultadoPresupuesto:
+    @staticmethod
+    def calcular(params: ParamsMembrana, empresa_id: str) -> ResultadoPresupuesto:
+        datos = cargar_empresa(empresa_id)
         sup = Decimal(str(params.superficie_m2))
 
-        # Determinar código de membrana según tipo
+        # Material: membrana según tipo
+        cod_mat = CalcMembrana.CODIGO_MEMBRANA[params.tipo]
+
         if params.tipo == "asfaltica":
             # 1 rollo cubre 10m2, solapar 15%
-            cant_rollos = Decimal(
+            cant_material = Decimal(
                 ceil(
-                    float(sup * Decimal("1.15") / self.RENDIMIENTO["asfaltica"])
+                    float(sup * Decimal("1.15") / CalcMembrana.RENDIMIENTO["asfaltica"])
                 )
             ) * Decimal(str(params.capas))
-            cod_mat = self.CODIGO_MEMBRANA["asfaltica"]
-            concep = "Membrana asfáltica rollo 10m2"
-            cant_material = cant_rollos
-
-        else:  # liquida
-            # 1 kg por m2 por capa; balde 20kg
-            cant_baldes = Decimal(
-                ceil(float(sup * Decimal(str(params.capas))) / 20.0)
-            )
-            cod_mat = self.CODIGO_MEMBRANA["liquida"]
-            concep = "Membrana líquida balde 20kg"
-            cant_material = cant_baldes
-
-        # Material: membrana
-        partidas = [
-            Partida(
-                codigo=cod_mat,
-                concepto=concep,
-                cantidad=cant_material,
-                unidad="u",
-            )
-        ]
+            concepto = "Membrana asfáltica rollo 10m2"
+            cant_material = Decimal(ceil(Decimal(str(params.capas)) * sup / Decimal("20")))
 
         # Mano de obra
-        p_mo = precio_mano_obra(self.datos, "MEMBRANA_IMPERMEAB")
+        p_mo = precio_mano_obra(datos, "MEMBRANA_IMPERMEAB")
         costo_mo = _q(p_mo * sup)
 
-        partidas.append(
+        # Partidas
+        partidas = [
             Partida(
-                codigo="",
+                concepto=concepto,
+                cantidad=cant_material,
+                unidad="u",
+                precio_unitario=precio_material(datos, cod_mat),
+                subtotal=_q(cant_material * precio_material(datos, cod_mat)),
+                categoria="material",
+            ),
+            Partida(
                 concepto="MO impermeabilización",
                 cantidad=sup,
                 unidad="m2",
                 precio_unitario=p_mo,
                 subtotal=costo_mo,
-            )
+                categoria="mano_obra",
+            ),
+        ]
+
+        total = sum((p.subtotal for p in partidas), Decimal("0"))
+        sub_mat = sum(
+            (p.subtotal for p in partidas if p.categoria == "material"),
+            Decimal("0"),
         )
-
-        # Validar materiales
-        materiales_faltantes([cod_mat])
-
-        # Calcular totals
-        subtotal_material = _q(precio_material(self.datos, cod_mat) * cant_material)
-        total = _q(subtotal_material + costo_mo)
+        sub_mo = sum(
+            (p.subtotal for p in partidas if p.categoria == "mano_obra"), Decimal("0")
+        )
 
         metadata = {
             "superficie_m2": params.superficie_m2,
@@ -106,19 +97,14 @@ class CalcMembrana:
         }
 
         return ResultadoPresupuesto(
+            rubro="membrana_impermeabilizante",
             partidas=partidas,
-            subtotal=subtotal_material,
+            subtotal_materiales=sub_mat,
+            subtotal_mano_obra=sub_mo,
             total=total,
             metadata=metadata,
             advertencias=[],
         )
 
 
-def registrar_calc():
-    """Registrar esta calculadora."""
-    from src.rubros.base import ResultadoRubro
-
-    return ResultadoRubro(
-        nombre="membrana_impermeabilizante",
-        cls=CalcMembrana,
-    )
+registrar(CalcMembrana())

@@ -8,12 +8,10 @@ from typing import Literal
 from pydantic import BaseModel, Field, PositiveFloat
 
 from src.datos.loader import (
-    DatosEmpresa,
     cargar_empresa,
     precio_mano_obra,
     precio_material,
 )
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -28,11 +26,12 @@ def _q(v: Decimal) -> Decimal:
 
 
 class CalcEstructuraMetalica:
-    """Calculadora de estructura metálica."""
+    accion = "estructura_metalica"
+    schema_params = ParamsEstructuraMetalica
 
     CODIGO_PERFIL = {
         "IPN_120": "PERFIL_IPN_120",
-        "IPN_140": "PERFIL_IPN_120",  # por ahora mismo
+        "IPN_140": "PERFIL_IPN_120",  # por ahora mismo código
         "IPN_160": "PERFIL_IPN_120",
     }
     PESO_KG_ML = {  # kg por ml de perfil
@@ -41,27 +40,29 @@ class CalcEstructuraMetalica:
         "IPN_160": Decimal("19.0"),
     }
 
-    def __init__(self, datos: DatosEmpresa):
-        self.datos = datos
-
-    def calcular(self, params: ParamsEstructuraMetalica) -> ResultadoPresupuesto:
+    @staticmethod
+    def calcular(params: ParamsEstructuraMetalica, empresa_id: str) -> ResultadoPresupuesto:
+        datos = cargar_empresa(empresa_id)
         long = Decimal(str(params.longitud_ml))
 
         # Perfil: barras de 12m
         cant_barras = Decimal(ceil(float(long) / 12.0))
-        cod_perfil = self.CODIGO_PERFIL[params.tipo_perfil]
+        cod_perfil = CalcEstructuraMetalica.CODIGO_PERFIL[params.tipo_perfil]
 
+        # Peso del perfil para electrodos
+        peso_total = long * CalcEstructuraMetalica.PESO_KG_ML[params.tipo_perfil]
+
+        # Partidas
         partidas = [
             Partida(
-                codigo=cod_perfil,
                 concepto=f"Perfil {params.tipo_perfil} barra 12m",
                 cantidad=cant_barras,
                 unidad="u",
+                precio_unitario=precio_material(datos, cod_perfil),
+                subtotal=_q(cant_barras * precio_material(datos, cod_perfil)),
+                categoria="material",
             )
         ]
-
-        # Peso del perfil para electrodos
-        peso_total = long * self.PESO_KG_ML[params.tipo_perfil]
 
         # Pintura anticorrosiva si aplica
         cant_latas = Decimal(0)
@@ -73,10 +74,12 @@ class CalcEstructuraMetalica:
 
             partidas.append(
                 Partida(
-                    codigo="PINTURA_ANTICORR",
                     concepto="Pintura anticorrosiva lata 4L",
                     cantidad=cant_latas,
                     unidad="u",
+                    precio_unitario=precio_material(datos, "PINTURA_ANTICORR"),
+                    subtotal=_q(cant_latas * precio_material(datos, "PINTURA_ANTICORR")),
+                    categoria="material",
                 )
             )
 
@@ -85,40 +88,40 @@ class CalcEstructuraMetalica:
 
         partidas.append(
             Partida(
-                codigo="ELECTRODO_E6013",
                 concepto="Electrodos E6013 caja 50u",
                 cantidad=cant_cajas_elec,
                 unidad="u",
+                precio_unitario=precio_material(datos, "ELECTRODO_E6013"),
+                subtotal=_q(cant_cajas_elec * precio_material(datos, "ELECTRODO_E6013")),
+                categoria="material",
             )
         )
 
         # Mano de obra
-        p_mo = precio_mano_obra(self.datos, "ESTRUCTURA_METALICA")
+        p_mo = precio_mano_obra(datos, "ESTRUCTURA_METALICA")
         costo_mo = _q(p_mo * long)
 
         partidas.append(
             Partida(
-                codigo="",
                 concepto="MO estructura metálica",
                 cantidad=long,
                 unidad="ml",
                 precio_unitario=p_mo,
                 subtotal=costo_mo,
+                categoria="mano_obra",
             )
         )
 
-        # Validar materiales
-        materiales_faltantes(
-            [cod_perfil, "PINTURA_ANTICORR", "ELECTRODO_E6013"]
+        # Totals
+        total = sum((p.subtotal for p in partidas), Decimal("0"))
+        sub_mat = sum(
+            (p.subtotal for p in partidas if p.categoria == "material"),
+            Decimal("0"),
         )
-
-        # Calcular totals
-        subtotal_material = _q(
-            precio_material(self.datos, cod_perfil) * cant_barras
-            + precio_material(self.datos, "PINTURA_ANTICORR") * cant_latas
-            + precio_material(self.datos, "ELECTRODO_E6013") * cant_cajas_elec
+        sub_mo = sum(
+            (p.subtotal for p in partidas if p.categoria == "mano_obra"),
+            Decimal("0"),
         )
-        total = _q(subtotal_material + costo_mo)
 
         metadata = {
             "longitud_ml": params.longitud_ml,
@@ -129,19 +132,14 @@ class CalcEstructuraMetalica:
         }
 
         return ResultadoPresupuesto(
+            rubro="estructura_metalica",
             partidas=partidas,
-            subtotal=subtotal_material,
+            subtotal_materiales=sub_mat,
+            subtotal_mano_obra=sub_mo,
             total=total,
             metadata=metadata,
             advertencias=[],
         )
 
 
-def registrar_calc():
-    """Registrar esta calculadora."""
-    from src.rubros.base import ResultadoRubro
-
-    return ResultadoRubro(
-        nombre="estructura_metalica",
-        cls=CalcEstructuraMetalica,
-    )
+registrar(CalcEstructuraMetalica())

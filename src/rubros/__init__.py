@@ -20,6 +20,10 @@ from src.rubros import (  # noqa: F401
     escalera_hormigon,
     membrana_impermeabilizante,
     estructura_metalica,
+    pintura,
+    cielorraso_durlock,
+    columna_hormigon,
+    viga_encadenado,
 )
 
 __all__ = ["REGISTRY", "Calculadora", "Partida", "ResultadoPresupuesto", "registrar"]
