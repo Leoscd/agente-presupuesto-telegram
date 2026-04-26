@@ -1,8 +1,10 @@
 """Handlers de Telegram."""
 from __future__ import annotations
 
+import io
 import json
 import logging
+from decimal import Decimal
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -66,6 +68,186 @@ async def cmd_tokens(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"USD gastado: ${r['usd_gastado']:.4f} / ${r['budget_usd']:.2f} ({r['porcentaje']}%)\n"
         f"USD restante: ${r['usd_restante']:.4f}"
     )
+
+
+# Palabras clave para detectar flujo de precio en caption
+_PALABRAS_PRECIO = {"precio", "precios", "lista", "cotiz", "cotización", "actualizar", "actualiza"}
+
+
+async def on_foto(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """ Maneja mensajes con foto (vision). """
+    if update.effective_user is None:
+        return
+    
+    # Obtener caption (texto junto con la imagen)
+    caption = update.message.caption or ""
+    photo = update.message.photo
+    document = update.message.document
+    
+    # Si hay documento (podría ser imagen), preferimo photo
+    if not photo and document:
+        # Intentar obtener el file
+        try:
+            file = await ctx.bot.get_file(document.file_id)
+            photo_bytes = await file.download_as_bytearray()
+            photo_bytes = bytes(photo_bytes)
+            mime = document.mime_type or "image/jpeg"
+        except Exception as e:
+            log.warning("Error descargando documento: %s", e)
+            await update.message.reply_text("❌ No pude descargar la imagen.")
+            return
+    elif photo:
+        # Tomar la foto de mayor resolución
+        foto = photo[-1]
+        try:
+            file = await ctx.bot.get_file(foto.file_id)
+            photo_bytes = await file.download_as_bytearray()
+            photo_bytes = bytes(photo_bytes)
+            mime = "image/jpeg"
+        except Exception as e:
+            log.warning("Error descargando foto: %s", e)
+            await update.message.reply_text("❌ No pude descargar la imagen.")
+            return
+    else:
+        await update.message.reply_text("❌ No encontré imagen adjunta.")
+        return
+    
+    # Verificar empresa
+    user_id = update.effective_user.id
+    try:
+        empresa_id = auth.resolver_empresa(user_id)
+    except PermissionError as e:
+        await update.message.reply_text(str(e))
+        return
+    
+    datos = cargar_empresa(empresa_id)
+    
+    # Detectar si es flujo de precio
+    es_flujo_precio = any(p in caption.lower() for p in _PALABRAS_PRECIO)
+    
+    # 1) Analizar imagen con visión
+    await update.message.chat.send_action(action="typing")
+    try:
+        if es_flujo_precio:
+            # Si es lista de precios, pasar el texto completo
+            texto_completo = caption if caption.strip() else "Analiza esta imagen de lista de precios"
+            resp = await minimax_client.parsear_imagen(
+                photo_bytes, 
+                datos.materiales_disponibles,
+                texto_completo,
+            )
+        else:
+            # Flujo normal de presupuesto por imagen
+            resp = await minimax_client.parsear_imagen(
+                photo_bytes,
+                datos.materiales_disponibles,
+                caption or None,
+            )
+    except Exception as e:
+        log.exception("Error MiniMax vision")
+        await update.message.reply_text(f"Error analizando imagen: {e}")
+        return
+    
+    log.info("Vision NLU: %s (conf=%.2f)", resp.accion, resp.confianza)
+    
+    # 2) Aclaración o confianza baja
+    if resp.accion == "aclaracion":
+        pregunta = resp.parametros.get("pregunta", "¿Podés dar más detalles?")
+        await update.message.reply_text(f"❓ {pregunta}")
+        return
+    
+    if resp.confianza < CONFIANZA_MIN:
+        await update.message.reply_text(
+            f"No pude entender la imagen (confianza {resp.confianza:.0%}). "
+            f"Interpreté: {resp.accion} {resp.parametros}. Intentá con más texto en el caption."
+        )
+        return
+    
+    # 3) Si es flujo de precio, manejar actualización de precios
+    if es_flujo_precio and resp.accion in ("actualizar_precio", "actualizar_mano_obra"):
+        await _procesar_actualizacion_precio(update, resp, empresa_id, caption)
+        return
+    
+    # 4) Cálculo normal de presupuesto
+    try:
+        resultado = router.despachar(resp.accion, resp.parametros, empresa_id)
+    except router.AccionDesconocida as e:
+        await update.message.reply_text(f"No tengo calculadora para eso: {e}")
+        return
+    except ValueError as e:
+        await update.message.reply_text(f"No pude calcular: {e}")
+        return
+    
+    # 5) Outlier check
+    mediana = db.mediana_total(empresa_id, resultado.rubro)
+    if mediana and float(resultado.total) > mediana * OUTLIER_FACTOR:
+        resultado.advertencias.append(
+            f"Total {float(resultado.total)/mediana:.0%} por encima de la mediana ({mediana:.0f})"
+        )
+    
+    # 6) Persistir
+    pid, id_corto = db.guardar_presupuesto(
+        empresa_id=empresa_id,
+        telegram_user_id=user_id,
+        input_texto=f"[IMAGEN] {caption}",
+        minimax_json=resp.raw,
+        minimax_confianza=resp.confianza,
+        resultado=resultado,
+        tokens_input=resp.tokens_input,
+        tokens_output=resp.tokens_output,
+        usd_estimado=resp.usd_estimado,
+        latencia_ms=resp.latencia_ms,
+    )
+    
+    # 7) Responder
+    texto_ok = formatter.formatear_presupuesto(resultado, id_corto)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+        [
+            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+        ],
+    ])
+    await update.message.reply_text(texto_ok, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=kb)
+
+
+async def _procesar_actualizacion_precio(update: Update, resp, empresa_id: str, texto_original: str) -> None:
+    """Procesa solicitud de actualización de precio desde visión."""
+    params = resp.parametros
+    codigo = params.get("codigo_material") or params.get("codigo_tarea")
+    nuevo_precio = params.get("nuevo_precio")
+    
+    if not codigo or not nuevo_precio:
+        await update.message.reply_text(
+            "❌ No pude entender qué precio actualizar. "
+            "Indicá el código y el nuevo precio en el caption."
+        )
+        return
+    
+    try:
+        nuevo_precio = float(nuevo_precio)
+    except (ValueError, TypeError):
+        await update.message.reply_text(f"❌ Precio inválido: {nuevo_precio}")
+        return
+    
+    # Determinar tipo de actualización
+    es_material = resp.accion == "actualizar_precio"
+    
+    if es_material:
+        ok = actualizar_precio_material(empresa_id, codigo, Decimal(str(nuevo_precio)))
+        tipo = "material"
+    else:
+        ok = actualizar_precio_mano_obra(empresa_id, codigo, Decimal(str(nuevo_precio)))
+        tipo = "mano de obra"
+    
+    if ok:
+        await update.message.reply_text(
+            f"✅ Actualizado {tipo} *{codigo}* a ${nuevo_precio:.2f}"
+        )
+    else:
+        await update.message.reply_text(
+            f"❌ No encontré {tipo} con código *{codigo}*"
+        )
 
 
 async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -226,4 +408,8 @@ def registrar(app) -> None:  # type: ignore[no-untyped-def]
     app.add_handler(CommandHandler("empresa", cmd_empresa))
     app.add_handler(CommandHandler("tokens", cmd_tokens))
     app.add_handler(CallbackQueryHandler(on_callback))
+    # Foto debe estar antes de TEXT para manejar imagen + caption
+    app.add_handler(MessageHandler(filters.PHOTO, on_foto))
+    # También documentos de tipo imagen
+    app.add_handler(MessageHandler(filters.Document & filters.ANY_PHOTO, on_foto))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_mensaje))

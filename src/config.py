@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     minimax_api_key: str = Field(..., alias="MINIMAX_API_KEY")
     minimax_base_url: str = Field("https://api.minimax.io/v1", alias="MINIMAX_BASE_URL")
     minimax_model: str = Field("MiniMax-M2", alias="MINIMAX_MODEL")
+    minimax_vision_model: str = Field("MiniMax-M2.1", alias="MINIMAX_VISION_MODEL")
 
     env: Literal["dev", "prod"] = Field("dev", alias="ENV")
     log_level: str = Field("INFO", alias="LOG_LEVEL")

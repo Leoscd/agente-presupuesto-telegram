@@ -4,11 +4,13 @@ MiniMax expone un endpoint OpenAI-compatible, así que usamos la SDK oficial de 
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
 import time
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
