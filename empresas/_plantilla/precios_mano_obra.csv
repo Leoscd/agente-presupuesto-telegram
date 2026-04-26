@@ -10,3 +10,13 @@ CONTRAPISO,Contrapiso de hormigón,m2,4500.00,2
 PISO_CERAMICO,Colocación piso cerámico,m2,6800.00,2
 REVESTIMIENTO_CERAMICO,Colocación revestimiento cerámico paredes,m2,7800.00,2
 CUBIERTA_TEJAS,Colocación cubierta de tejas,m2,6500.00,2
+COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.00,
+VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.00,
+FUNDACION,Hormigonado fundaciones,m3,65000.00,
+ESCALERA_HORMIGON,Escalera de hormigon armado,u,185000.00,
+PINTURA,Pintura interior o exterior por m2,m2,3500.00,
+CIELORRASO_DURLOCK,Colocacion cielorraso Durlock,m2,8500.00,
+MEMBRANA_IMPERMEAB,Colocacion membrana impermeabilizante,m2,5500.00,
+ESTRUCTURA_METALICA,Montaje estructura metalica,ml,18000.00,
+COLUMNA_HORMIGON,Hormigonado y encofrado columnas,m3,95000.00,
+VIGA_ENCADENADO,Hormigonado y encofrado vigas y encadenados,m3,85000.00,

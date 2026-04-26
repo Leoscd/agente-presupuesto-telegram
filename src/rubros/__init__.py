@@ -16,6 +16,10 @@ from src.rubros import (  # noqa: F401
     instalacion_sanitaria,
     revoque_fino,
     piso_ceramico,
+    fundacion,
+    escalera_hormigon,
+    membrana_impermeabilizante,
+    estructura_metalica,
 )
 
 __all__ = ["REGISTRY", "Calculadora", "Partida", "ResultadoPresupuesto", "registrar"]
