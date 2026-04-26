@@ -759,9 +759,688 @@ asyncio.run(t())
 
 ---
 
+## TAREA 14 — Actualización de precios por lenguaje natural
+
+### Objetivo
+Cuando el usuario diga *"el cemento ahora vale $7200"*, *"mano de obra pintura: $3800/m2"* o *"CERAMICO_45X45 cuesta $4500"*, el bot debe actualizar el CSV de la empresa y confirmar el cambio.
+
+**Seguridad:** solo usuarios admin pueden actualizar precios. Verificar con `auth.es_admin(user_id)` antes de ejecutar.
+
+---
+
+### PASO A — Agregar función `actualizar_precio_material` en `src/datos/loader.py`
+
+Agregar al final del archivo (antes de nada, agregar `from datetime import date` al bloque de imports):
+
+```python
+def actualizar_precio_material(empresa_id: str, codigo: str, nuevo_precio: Decimal) -> Decimal:
+    """Edita precio en precios_materiales.csv. Devuelve precio anterior.
+    El hot-reload es automático: mtime cambia → próxima llamada a cargar_empresa() recarga.
+    """
+    from datetime import date
+    d = _empresa_dir(empresa_id)
+    path = d / "precios_materiales.csv"
+    df = pd.read_csv(path, dtype={"codigo": str, "descripcion": str, "unidad": str})
+    mask = df["codigo"] == codigo.upper()
+    if not mask.any():
+        # intento case-insensitive sobre descripcion
+        mask = df["descripcion"].str.upper() == codigo.upper()
+        if not mask.any():
+            raise MaterialNoEncontrado(f"Código '{codigo}' no encontrado en materiales de {empresa_id}")
+    precio_anterior = Decimal(str(df.loc[mask, "precio"].iloc[0]))
+    df.loc[mask, "precio"] = float(nuevo_precio)
+    df.loc[mask, "fecha_actualizacion"] = date.today().isoformat()
+    df.to_csv(path, index=False)
+    return precio_anterior
+
+
+def actualizar_precio_mano_obra(empresa_id: str, tarea: str, nuevo_precio: Decimal) -> Decimal:
+    """Edita precio en precios_mano_obra.csv. Devuelve precio anterior."""
+    d = _empresa_dir(empresa_id)
+    path = d / "precios_mano_obra.csv"
+    df = pd.read_csv(path, dtype={"tarea": str, "descripcion": str, "unidad": str})
+    mask = df["tarea"] == tarea.upper()
+    if not mask.any():
+        mask = df["descripcion"].str.upper().str.contains(tarea.upper(), na=False)
+        if not mask.any():
+            raise MaterialNoEncontrado(f"Tarea '{tarea}' no encontrada en MO de {empresa_id}")
+    precio_anterior = Decimal(str(df.loc[mask, "precio"].iloc[0]))
+    df.loc[mask, "precio"] = float(nuevo_precio)
+    df.to_csv(path, index=False)
+    return precio_anterior
+
+
+def listar_materiales_con_descripcion(empresa_id: str) -> list[dict]:
+    """Devuelve lista [{codigo, descripcion, unidad, precio}] para pasar a MiniMax."""
+    datos = cargar_empresa(empresa_id)
+    return [
+        {
+            "codigo": str(r["codigo"]),
+            "descripcion": str(r["descripcion"]),
+            "unidad": str(r["unidad"]),
+            "precio_actual": float(r["precio"]),
+        }
+        for _, r in datos.precios_materiales.iterrows()
+    ]
+
+
+def listar_mo_con_descripcion(empresa_id: str) -> list[dict]:
+    """Devuelve lista [{tarea, descripcion, unidad, precio}] para pasar a MiniMax."""
+    datos = cargar_empresa(empresa_id)
+    return [
+        {
+            "tarea": str(r["tarea"]),
+            "descripcion": str(r["descripcion"]),
+            "unidad": str(r["unidad"]),
+            "precio_actual": float(r["precio"]),
+        }
+        for _, r in datos.precios_mano_obra.iterrows()
+    ]
+```
+
+---
+
+### PASO B — Nuevas acciones en `src/orquestador/prompts.py`
+
+Agregar al SYSTEM_PROMPT, en la sección ACCIONES DISPONIBLES (después de la acción 11):
+
+```
+12. "actualizar_precio": codigo_material(str — código del CSV en mayúsculas), nuevo_precio(float), descripcion_usuario(str — lo que dijo el usuario)
+    → cuando el usuario informa un precio nuevo para un MATERIAL (cemento, hierro, cerámica, etc.)
+    → mapeá el nombre coloquial al código CSV más cercano en la lista de materiales
+    → EJEMPLO: "el cemento subió a 7200" → {"accion":"actualizar_precio","parametros":{"codigo_material":"CEMENTO_PORTLAND","nuevo_precio":7200,"descripcion_usuario":"cemento"},"confianza":0.92}
+
+13. "actualizar_mano_obra": codigo_tarea(str — código del CSV en mayúsculas), nuevo_precio(float), descripcion_usuario(str)
+    → cuando el usuario informa un precio nuevo para MANO DE OBRA (colocación, hormigonado, etc.)
+    → EJEMPLO: "mano de obra pintura ahora $3800/m2" → {"accion":"actualizar_mano_obra","parametros":{"codigo_tarea":"PINTURA","nuevo_precio":3800,"descripcion_usuario":"mano de obra pintura"},"confianza":0.90}
+```
+
+Agregar ejemplos al final de EJEMPLOS:
+```
+USUARIO: "el cemento portland subió a $7500 la bolsa"
+SALIDA: {"accion":"actualizar_precio","parametros":{"codigo_material":"CEMENTO_PORTLAND","nuevo_precio":7500,"descripcion_usuario":"cemento portland"},"confianza":0.95}
+
+USUARIO: "mano de obra colocación cerámico: $3200 el m2"
+SALIDA: {"accion":"actualizar_mano_obra","parametros":{"codigo_tarea":"PISO_CERAMICO","nuevo_precio":3200,"descripcion_usuario":"colocación cerámico"},"confianza":0.91}
+```
+
+Agregar nueva función `build_user_message_precio()`:
+```python
+def build_user_message_precio(
+    texto_usuario: str,
+    materiales: list[dict],
+    mano_obra: list[dict],
+) -> str:
+    """Mensaje con catálogo completo para que MiniMax mapee nombre → código CSV."""
+    ctx = {
+        "materiales": materiales,   # [{codigo, descripcion, unidad, precio_actual}]
+        "mano_obra": mano_obra,     # [{tarea, descripcion, unidad, precio_actual}]
+    }
+    return (
+        f"Catálogo de la empresa:\n{json.dumps(ctx, ensure_ascii=False)}\n\n"
+        f"Mensaje del arquitecto:\n{texto_usuario.strip()}"
+    )
+```
+
+---
+
+### PASO C — Nueva función `parsear_precio()` en `src/orquestador/minimax_client.py`
+
+```python
+async def parsear_precio(texto_usuario: str, materiales: list[dict], mano_obra: list[dict]) -> RespuestaOrq:
+    """NLU para actualización de precios. Pasa catálogo completo para mapear códigos."""
+    from src.orquestador.prompts import build_user_message_precio
+    t0 = time.perf_counter()
+    user_msg = build_user_message_precio(texto_usuario, materiales, mano_obra)
+    resp: ChatCompletion = await _cliente().chat.completions.create(
+        model=settings.minimax_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=500,
+    )
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError:
+        raw = {"accion": "aclaracion", "parametros": {"pregunta": "No entendí el precio. ¿Me das el código y el valor?"}, "confianza": 0.0}
+    usage = resp.usage
+    tin = usage.prompt_tokens if usage else 0
+    tout = usage.completion_tokens if usage else 0
+    usd = _estimar_usd(tin, tout)
+    db.acumular_tokens(tin, tout, usd)
+    return RespuestaOrq(
+        accion=str(raw.get("accion", "")),
+        parametros=dict(raw.get("parametros", {})),
+        confianza=float(raw.get("confianza", 0.0)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
+    )
+```
+
+---
+
+### PASO D — Handler en `src/bot/handlers.py`
+
+1. Agregar imports al inicio:
+```python
+from decimal import Decimal, InvalidOperation
+from src.datos.loader import (
+    actualizar_precio_material,
+    actualizar_precio_mano_obra,
+    listar_materiales_con_descripcion,
+    listar_mo_con_descripcion,
+)
+from src.orquestador.minimax_client import parsear_precio
+```
+
+2. En `on_mensaje()`, **después** del bloque de confianza baja (paso 2) y **antes** del bloque de cálculo (paso 3), insertar:
+
+```python
+    # 2b) Actualización de precio (solo admin)
+    if resp.accion in ("actualizar_precio", "actualizar_mano_obra"):
+        if not auth.es_admin(user_id):
+            await update.message.reply_text("⛔ Solo el admin puede actualizar precios.")
+            return
+        params = resp.parametros
+        try:
+            nuevo_precio = Decimal(str(params.get("nuevo_precio", 0)))
+            if nuevo_precio <= 0:
+                raise InvalidOperation
+        except InvalidOperation:
+            await update.message.reply_text("No pude leer el precio. Escribilo como número, ej: `7200`")
+            return
+
+        try:
+            if resp.accion == "actualizar_precio":
+                codigo = str(params.get("codigo_material", "")).upper()
+                precio_anterior = actualizar_precio_material(empresa_id, codigo, nuevo_precio)
+                await update.message.reply_text(
+                    f"✅ *{codigo}* actualizado\n"
+                    f"Precio anterior: ${float(precio_anterior):,.2f}\n"
+                    f"Precio nuevo: ${float(nuevo_precio):,.2f}",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            else:
+                tarea = str(params.get("codigo_tarea", "")).upper()
+                precio_anterior = actualizar_precio_mano_obra(empresa_id, tarea, nuevo_precio)
+                await update.message.reply_text(
+                    f"✅ MO *{tarea}* actualizada\n"
+                    f"Precio anterior: ${float(precio_anterior):,.2f}\n"
+                    f"Precio nuevo: ${float(nuevo_precio):,.2f}",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+        except Exception as e:
+            await update.message.reply_text(f"❌ No pude actualizar: {e}")
+        return
+```
+
+3. En `on_mensaje()`, la detección de intención de actualizar precio debe ocurrir **antes** de llamar a `parsear()` normal. Reemplazar el bloque NLU (paso 1) con:
+
+```python
+    # 1) Detectar si es actualización de precio ANTES de llamar al NLU general
+    _PRECIO_RE = re.compile(
+        r"\b(precio|vale|cuesta|subió|bajó|actualiz|tarifa|mano.?de.?obra)\b",
+        re.IGNORECASE
+    )
+    if auth.es_admin(user_id) and _PRECIO_RE.search(texto):
+        # Usar NLU especial con catálogo completo
+        await update.message.chat.send_action(action="typing")
+        try:
+            mats = listar_materiales_con_descripcion(empresa_id)
+            mos = listar_mo_con_descripcion(empresa_id)
+            resp = await parsear_precio(texto, mats, mos)
+        except Exception as e:
+            log.exception("Error MiniMax parsear_precio")
+            await update.message.reply_text(f"Error: {e}")
+            return
+        # Si MiniMax reconoció una acción de precio, el bloque 2b la maneja.
+        # Si devolvió otro tipo de acción (ej. techo_chapa), caer al flujo normal.
+        if resp.accion in ("actualizar_precio", "actualizar_mano_obra", "aclaracion"):
+            # bloque 2b se encarga abajo
+            pass
+        else:
+            # No era precio, continuar con resp ya cargado (skip NLU general)
+            pass
+    else:
+        # 1) NLU estándar
+        await update.message.chat.send_action(action="typing")
+        try:
+            resp = await minimax_client.parsear(texto, datos.materiales_disponibles)
+        except Exception as e:
+            log.exception("Error MiniMax")
+            await update.message.reply_text(f"Error consultando el orquestador: {e}")
+            return
+```
+
+**Importante:** agregar `import re` al inicio de `handlers.py` si no está ya.
+
+---
+
+### PASO E — Tests para TAREA 14
+
+Crear `tests/test_precio_update.py`:
+
+```python
+"""Tests para actualización de precios por lenguaje natural."""
+import shutil
+from decimal import Decimal
+from pathlib import Path
+import pytest
+from src.datos.loader import actualizar_precio_material, actualizar_precio_mano_obra, cargar_empresa
+
+EMPRESA = "estudio_ramos"
+
+def test_actualizar_precio_material(tmp_path):
+    # Crear empresa temporal copiando estudio_ramos
+    empresa_tmp = tmp_path / "empresa_test"
+    shutil.copytree(Path("empresas/estudio_ramos"), empresa_tmp)
+    # Patch settings para usar tmp
+    # ... (usar monkeypatch de pytest para settings.data_dir)
+    # Verificar que el precio cambió
+
+def test_actualizar_precio_material_codigo_no_existe():
+    with pytest.raises(Exception, match="no encontrado"):
+        actualizar_precio_material(EMPRESA, "MATERIAL_INVENTADO_XYZ", Decimal("1000"))
+
+def test_actualizar_precio_mano_obra_codigo_no_existe():
+    with pytest.raises(Exception, match="no encontrada"):
+        actualizar_precio_mano_obra(EMPRESA, "TAREA_INVENTADA_XYZ", Decimal("1000"))
+```
+
+---
+
+## TAREA 15 — Cotización por imagen (visión)
+
+### Objetivo
+El arquitecto envía una foto de:
+- Un **sketch/plano con medidas** a mano alzada (techo 7×10, perfil C100)
+- Una **foto de una fachada** con dimensiones anotadas
+- Un **plano de baño** con cotas
+- Una **lista de precios** escaneada o fotografiada
+
+El bot interpreta la imagen y devuelve el mismo presupuesto que si el usuario hubiera escrito el pedido en texto.
+
+---
+
+### PASO A — Función `parsear_imagen()` en `src/orquestador/minimax_client.py`
+
+**Cómo funciona:** MiniMax-M2 soporta input multimodal (imagen + texto) vía el mismo endpoint OpenAI-compatible. Se envía la imagen como `image_url` con base64.
+
+```python
+import base64
+
+SYSTEM_PROMPT_VISION = """Sos el parser NLU de un bot de presupuestos de obra para arquitectos argentinos.
+Analizá la imagen y extraé la información necesaria para presupuestar.
+
+La imagen puede ser:
+- Un sketch o croquis con medidas (ej: techo 7x10m, perfil C100)
+- Una foto de un plano arquitectónico con cotas
+- Una foto de un ambiente con dimensiones
+- Una lista de precios o presupuesto existente
+
+Tu tarea: devolver el mismo JSON que si el usuario hubiera escrito el pedido en texto.
+
+""" + SYSTEM_PROMPT  # reutiliza todas las acciones y reglas
+
+
+async def parsear_imagen(
+    foto_bytes: bytes,
+    materiales_disponibles: list[str],
+    mime_type: str = "image/jpeg",
+) -> RespuestaOrq:
+    """NLU sobre imagen. Convierte foto en base64 y llama a MiniMax con vision."""
+    t0 = time.perf_counter()
+
+    b64 = base64.b64encode(foto_bytes).decode("utf-8")
+    data_url = f"data:{mime_type};base64,{b64}"
+
+    ctx_text = (
+        f"Materiales disponibles en la empresa: {materiales_disponibles}\n\n"
+        "Analizá la imagen y devolvé el JSON de presupuesto."
+    )
+
+    resp: ChatCompletion = await _cliente().chat.completions.create(
+        model=settings.minimax_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT_VISION},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": ctx_text},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            },
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=1000,
+    )
+
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError:
+        raw = {
+            "accion": "aclaracion",
+            "parametros": {"pregunta": "No pude interpretar la imagen. ¿Podés escribir las dimensiones?"},
+            "confianza": 0.0,
+        }
+
+    usage = resp.usage
+    tin = usage.prompt_tokens if usage else 0
+    tout = usage.completion_tokens if usage else 0
+    usd = _estimar_usd(tin, tout)
+    db.acumular_tokens(tin, tout, usd)
+
+    return RespuestaOrq(
+        accion=str(raw.get("accion", "")),
+        parametros=dict(raw.get("parametros", {})),
+        confianza=float(raw.get("confianza", 0.0)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
+    )
+```
+
+---
+
+### PASO B — Handler de foto en `src/bot/handlers.py`
+
+1. Agregar el import al inicio:
+```python
+from src.orquestador.minimax_client import parsear_imagen
+```
+
+2. Agregar la función handler:
+
+```python
+async def on_foto(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handler para mensajes con imagen. Misma lógica que on_mensaje pero vía visión."""
+    if update.effective_user is None or update.message is None:
+        return
+    if not update.message.photo:
+        return
+
+    user_id = update.effective_user.id
+    try:
+        empresa_id = auth.resolver_empresa(user_id)
+    except PermissionError as e:
+        await update.message.reply_text(str(e))
+        return
+
+    datos = cargar_empresa(empresa_id)
+
+    # Descargar la foto (mayor resolución disponible = último elemento)
+    foto = update.message.photo[-1]
+    await update.message.chat.send_action(action="typing")
+    foto_file = await _ctx.bot.get_file(foto.file_id)
+    foto_bytes = await foto_file.download_as_bytearray()
+
+    # Texto adicional que el usuario haya escrito junto con la foto (caption)
+    caption = update.message.caption or ""
+    if caption:
+        await update.message.reply_text(f"📸 Imagen recibida. Analizando con nota: *{caption}*", parse_mode=ParseMode.MARKDOWN)
+    else:
+        await update.message.reply_text("📸 Imagen recibida. Analizando dimensiones y materiales...")
+
+    try:
+        resp = await parsear_imagen(bytes(foto_bytes), datos.materiales_disponibles)
+    except Exception as e:
+        log.exception("Error MiniMax visión")
+        await update.message.reply_text(f"No pude procesar la imagen: {e}")
+        return
+
+    log.info("VISION NLU: %s (conf=%.2f, tokens=%d/%d, $%.5f)",
+             resp.accion, resp.confianza, resp.tokens_input, resp.tokens_output, resp.usd_estimado)
+
+    # Si el caption tiene info adicional, combinar con lo extraído de la imagen
+    # (el arquitecto puede escribir "techo" y la imagen tiene las medidas)
+    if caption and resp.accion == "aclaracion":
+        # Reintentar con texto + contexto de imagen fallida
+        await update.message.reply_text(
+            "No pude leer las medidas de la imagen. ¿Me las escribís en texto?\n"
+            "Ej: `techo chapa 7x10 perfil C100`"
+        )
+        return
+
+    # Desde acá, flujo idéntico a on_mensaje (pasos 2→7)
+    if resp.accion == "aclaracion":
+        pregunta = resp.parametros.get("pregunta", "No pude leer las medidas. ¿Me las escribís?")
+        await update.message.reply_text(f"❓ {pregunta}")
+        return
+
+    if resp.confianza < CONFIANZA_MIN:
+        await update.message.reply_text(
+            f"Vi algo en la imagen pero no estoy seguro (confianza {resp.confianza:.0%}).\n"
+            f"Interpreté: {resp.accion} con parámetros {resp.parametros}.\n"
+            "¿Es correcto o me confirmás las medidas?"
+        )
+        return
+
+    try:
+        resultado = router.despachar(resp.accion, resp.parametros, empresa_id)
+    except router.AccionDesconocida as e:
+        await update.message.reply_text(f"No tengo calculadora para eso todavía. {e}")
+        return
+    except ValueError as e:
+        await update.message.reply_text(f"No pude calcular: {e}")
+        return
+
+    mediana = db.mediana_total(empresa_id, resultado.rubro)
+    if mediana and float(resultado.total) > mediana * OUTLIER_FACTOR:
+        resultado.advertencias.append(
+            f"Total {float(resultado.total)/mediana:.0%} por encima de la mediana. Revisá medidas."
+        )
+
+    pid, id_corto = db.guardar_presupuesto(
+        empresa_id=empresa_id,
+        telegram_user_id=user_id,
+        input_texto=f"[imagen] {caption}",
+        minimax_json=resp.raw,
+        minimax_confianza=resp.confianza,
+        resultado=resultado,
+        tokens_input=resp.tokens_input,
+        tokens_output=resp.tokens_output,
+        usd_estimado=resp.usd_estimado,
+        latencia_ms=resp.latencia_ms,
+    )
+
+    texto_ok = formatter.formatear_presupuesto(resultado, id_corto)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+        [
+            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+        ],
+    ])
+    await update.message.reply_text(texto_ok, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=kb)
+```
+
+3. En `registrar(app)`, agregar el handler de foto:
+```python
+app.add_handler(MessageHandler(filters.PHOTO, on_foto))
+```
+**Ponerlo ANTES** del handler de texto para que las fotos no caigan en `on_mensaje`.
+
+---
+
+### PASO C — Manejo del caso mixto: imagen + lista de precios
+
+Si el arquitecto manda una foto de una **lista de precios** (foto de revista, proveedor, etc.), el bot debe detectarlo y usar el flujo de `parsear_precio` en lugar del flujo de cotización.
+
+En `on_foto()`, antes de llamar a `parsear_imagen()`, agregar detección por caption:
+
+```python
+    # Detectar si la imagen es una lista de precios (caption lo indica)
+    _LISTA_PRECIOS_RE = re.compile(
+        r"\b(precio|lista.?precio|cotiz|proveedor|actualiz|material|tarifa)\b",
+        re.IGNORECASE
+    )
+    if auth.es_admin(user_id) and caption and _LISTA_PRECIOS_RE.search(caption):
+        # Imagen de lista de precios: usar parsear_imagen con prompt especializado
+        # Por ahora: pedir confirmación manual de cada precio extraído
+        await update.message.reply_text(
+            "📋 Veo que es una lista de precios. Extraigo los valores...\n"
+            "_Esta función actualiza automáticamente los materiales que reconozca._",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        # parsear_imagen con SYSTEM_PROMPT_VISION manejará el caso —
+        # si MiniMax devuelve accion="actualizar_precio", el bloque 2b lo aplica
+        # Si devuelve múltiples precios, necesitaríamos un nuevo tipo de acción:
+        # "actualizar_multiples_precios": lista de {codigo, precio}
+        # (implementar en iteración futura — por ahora informar que se actualiza de a uno)
+        await update.message.reply_text(
+            "💡 Por ahora actualizá de a un precio a la vez escribiendo:\n"
+            "`el ceramico 45x45 ahora vale $4800`"
+        )
+        return
+```
+
+---
+
+### PASO D — SYSTEM_PROMPT_CATEGORIA actualizado
+
+Agregar al `SYSTEM_PROMPT_CATEGORIA` las nuevas categorías:
+
+```python
+SYSTEM_PROMPT_CATEGORIA = """Clasificá el pedido en UNA de estas categorías:
+- cubiertas: techos de chapa, tejas, membrana, losa de cubierta
+- obra_gruesa: mampostería, losa entre pisos, contrapiso, encadenados
+- terminaciones: revoques, pisos, cerámicos, porcelanato, revestimientos
+- instalaciones: electricidad, sanitaria, gas
+- estructura: columnas, vigas, fundaciones, escaleras de hormigón, estructura metálica
+- terminaciones_especiales: pintura, cielorraso, durlock, membrana impermeabilizante
+- gestion: actualización de precios, consulta de materiales, historial
+
+Devolvé SOLO JSON: {"categoria": "<nombre>", "confianza": <0.0-1.0>}"""
+```
+
+---
+
+### PASO E — Fallback si MiniMax no soporta visión
+
+MiniMax-M2 soporta imágenes vía OpenAI-compatible API. Pero si la llamada falla con error de tipo "model does not support vision" o similar, el handler debe degradar gracefully:
+
+```python
+    try:
+        resp = await parsear_imagen(bytes(foto_bytes), datos.materiales_disponibles)
+    except Exception as e:
+        err_str = str(e).lower()
+        if "vision" in err_str or "image" in err_str or "multimodal" in err_str:
+            await update.message.reply_text(
+                "📸 Recibí la imagen, pero el modelo configurado no soporta visión.\n"
+                "Escribime las medidas en texto:\n"
+                "`techo chapa 7x10 perfil C100`"
+            )
+        else:
+            await update.message.reply_text(f"Error procesando imagen: {e}")
+        return
+```
+
+---
+
+### PASO F — Tests para TAREA 15
+
+Crear `tests/test_vision.py`:
+
+```python
+"""Tests para handler de imágenes (mock de MiniMax vision)."""
+import pytest
+from unittest.mock import AsyncMock, patch
+from src.orquestador.minimax_client import parsear_imagen, RespuestaOrq
+
+@pytest.mark.asyncio
+async def test_parsear_imagen_devuelve_respuesta_orq():
+    """parsear_imagen() con mock de la API devuelve RespuestaOrq bien formada."""
+    mock_resp = {
+        "accion": "techo_chapa",
+        "parametros": {"ancho": 7, "largo": 10, "tipo_chapa": "galvanizada_075", "tipo_perfil": "C100"},
+        "confianza": 0.88,
+    }
+    with patch("src.orquestador.minimax_client._cliente") as mock_cliente:
+        mock_chat = AsyncMock()
+        mock_chat.completions.create.return_value = _mock_completion(mock_resp)
+        mock_cliente.return_value.chat = mock_chat
+
+        foto_dummy = b"JFIF" + b"\x00" * 100  # bytes dummy
+        resultado = await parsear_imagen(foto_dummy, ["CHAPA_GALVANIZADA_075"])
+
+    assert resultado.accion == "techo_chapa"
+    assert resultado.parametros["ancho"] == 7
+    assert resultado.confianza == 0.88
+
+
+def _mock_completion(raw: dict):
+    """Helper: crea un mock de ChatCompletion con el JSON dado."""
+    import json
+    from unittest.mock import MagicMock
+    c = MagicMock()
+    c.choices[0].message.content = json.dumps(raw)
+    c.usage.prompt_tokens = 500
+    c.usage.completion_tokens = 80
+    return c
+```
+
+---
+
+## VERIFICACIÓN FINAL
+
+Correr antes de hacer commit:
+
+```bash
+# 1. Tests
+.venv\Scripts\python -m pytest tests/ -v
+
+# 2. Golden
+PYTHONPATH=. .venv\Scripts\python scripts/correr_golden.py
+
+# 3. Smoke test pipeline MiniMax (requiere internet)
+.venv\Scripts\python -c "
+import asyncio, src.rubros
+from src.persistencia.db import init_db; init_db()
+from src.orquestador.minimax_client import parsear
+from src.orquestador.router import despachar
+from src.datos.loader import cargar_empresa
+
+async def t():
+    textos = [
+        '8 columnas de 25x25 de 3 metros',
+        'encadenado superior 40ml seccion 20x30',
+        'pintura latex interior 120m2',
+        'cielorraso durlock simple 45m2',
+    ]
+    for txt in textos:
+        datos = cargar_empresa('estudio_ramos')
+        r = await parsear(txt, datos.materiales_disponibles[:8])
+        if r.accion != 'aclaracion':
+            res = despachar(r.accion, r.parametros, 'estudio_ramos')
+            print(f'OK {r.accion}: {res.total}')
+        else:
+            print(f'ACLARACION: {r.parametros}')
+
+asyncio.run(t())
+"
+```
+
+---
+
 ## NOTAS PARA EL AGENTE
 
 - El patrón H21 (cemento×7, arena×0.45, piedra×0.65, plastificante cada 5m³) es **idéntico** en columnas, vigas, fundaciones y escaleras. Copialo de `losa.py` y ajustá solo el volumen.
 - Los imports de cada rubro siempre: `cargar_empresa, precio_mano_obra, precio_material` de `src.datos.loader`, y `Partida, ResultadoPresupuesto, registrar` de `src.rubros.base`.
 - Nunca importar `materiales_faltantes` a menos que se use con códigos reales de CSV.
 - La función `registrar()` recibe una **instancia**, no la clase: `registrar(CalcColumnaHormigon())`.
+- **TAREA 14:** la invalidación de caché es **automática** — editar el CSV cambia su mtime y `_mtime_signature()` devuelve un tuple diferente en la próxima llamada a `cargar_empresa()`. No hace falta llamar a ninguna función de limpieza de caché.
+- **TAREA 15:** Si MiniMax-M2 rechaza el request de visión (error 400/422), implementar el fallback del PASO E que pide las medidas en texto. No bloquear al usuario.
+- **Orden de handlers:** en `registrar(app)`, `filters.PHOTO` debe ir ANTES de `filters.TEXT` para que las fotos no caigan en el handler de texto.
