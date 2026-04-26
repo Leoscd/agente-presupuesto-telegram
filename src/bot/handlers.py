@@ -11,7 +11,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, Mes
 
 from src.bot import auth, formatter
 from src.config import settings
-from src.datos.loader import cargar_empresa
+from src.datos.loader import cargar_empresa, actualizar_precio_material, actualizar_precio_mano_obra, listar_materiales_con_descripcion, listar_mo_con_descripcion
 from src.metricas import tokens
 from src.orquestador import minimax_client, router
 from src.persistencia import db

@@ -40,6 +40,10 @@ ACCIONES DISPONIBLES:
 
 10. "piso_ceramico": superficie_m2, material("ceramico_30x30"|"ceramico_45x45"|"porcelanato_60x60"|"porcelanato_60x60_premium"), incluye_zocalo(bool, default false), perimetro_m(default 0)
 
+12. "actualizar_precio": codigo_material(str), nuevo_precio(float), descripcion_usuario(str)
+    # cuando el usuario informa un precio nuevo para un MATERIAL
+13. "actualizar_mano_obra": codigo_tarea(str), nuevo_precio(float), descripcion_usuario(str)
+    # cuando el usuario informa un precio nuevo para MANO DE OBRA
 11. "aclaracion": pregunta(string)
 
 12. "columna_hormigon": seccion("20x20"|"25x25"|"30x30"|"30x40"|"40x40"), altura_m(float), cantidad(1-100, default 1)
@@ -96,3 +100,18 @@ def build_user_message(texto_usuario: str, materiales_disponibles: list[str], ac
     if acciones_filtradas:
         msg += f"\n\nAcciones disponibles en este contexto: {acciones_filtradas}"
     return msg
+
+def build_user_message_precio(
+    texto_usuario: str,
+    materiales: list[dict],
+    mano_obra: list[dict],
+) -> str:
+    """Mensaje con catalogo completo para que MiniMax mapee nombre → codigo CSV."""
+    ctx = {
+        "materiales": materiales,
+        "mano_obra": mano_obra,
+    }
+    return (
+        f" Catalogo de la empresa:\n{json.dumps(ctx, ensure_ascii=False)}\n\n"
+        f"Mensaje del arquitecto:\n{texto_usuario.strip()}"
+    )

@@ -14,7 +14,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 
 from src.config import settings
-from src.orquestador.prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_CATEGORIA, build_user_message
+from src.orquestador.prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_CATEGORIA, build_user_message, build_user_message_precio
 from src.persistencia import db
 
 log = logging.getLogger(__name__)
@@ -121,6 +121,49 @@ async def parsear(texto_usuario: str, materiales_disponibles: list[str], accione
         raw = json.loads(content)
     except json.JSONDecodeError as e:
         log.warning("MiniMax devolvió JSON inválido: %s — payload: %s", e, content)
+        raw = {"accion": "aclaracion", "parametros": {"pregunta": "¿Podés reformular el pedido?"}, "confianza": 0.0}
+
+    usage = resp.usage
+    tin = usage.prompt_tokens if usage else 0
+    tout = usage.completion_tokens if usage else 0
+    usd = _estimar_usd(tin, tout)
+
+    db.acumular_tokens(tin, tout, usd)
+
+    return RespuestaOrq(
+        accion=str(raw.get("accion", "")),
+        parametros=dict(raw.get("parametros", {})),
+        confianza=float(raw.get("confianza", 0.0)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
+    )
+
+
+async def parsear_precio(texto_usuario: str, materiales: list[dict], mano_obra: list[dict]) -> RespuestaOrq:
+    """NLU para actualizacion de precios. Pasa catalogo completo para mapear codigos."""
+    t0 = time.perf_counter()
+    user_msg = build_user_message_precio(texto_usuario, materiales, mano_obra)
+
+    resp: ChatCompletion = await _cliente().chat.completions.create(
+        model=settings.minimax_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=1000,
+    )
+
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError as e:
+        log.warning("MiniMax devolvio JSON invalido para precio: %s", e)
         raw = {"accion": "aclaracion", "parametros": {"pregunta": "¿Podés reformular el pedido?"}, "confianza": 0.0}
 
     usage = resp.usage
