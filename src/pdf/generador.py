@@ -12,7 +12,14 @@ from decimal import Decimal
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML
+
+# WeasyPrint requiere GTK en Windows. Import lazy: solo falla si se genera un PDF.
+try:
+    from weasyprint import HTML as _WeasyHTML
+    _WEASY_OK = True
+except OSError:
+    _WeasyHTML = None  # type: ignore[assignment,misc]
+    _WEASY_OK = False
 
 from src.config import settings
 from src.datos.loader import DatosEmpresa
@@ -86,5 +93,11 @@ def generar_pdf(
     slug = _slug(datos_empresa.config.nombre)
     out = destino_dir / f"Presupuesto_{slug}_{fecha}_{id_corto}.pdf"
 
-    HTML(string=html, base_url=str(tpl_dir)).write_pdf(str(out))
+    if not _WEASY_OK:
+        raise RuntimeError(
+            "WeasyPrint no pudo cargar GTK. "
+            "Instalá el runtime desde https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer "
+            "y reiniciá el bot para habilitar la generación de PDFs."
+        )
+    _WeasyHTML(string=html, base_url=str(tpl_dir)).write_pdf(str(out))
     return out
