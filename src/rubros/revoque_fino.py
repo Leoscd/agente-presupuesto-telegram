@@ -7,7 +7,6 @@ from math import ceil
 from pydantic import BaseModel, Field, PositiveFloat
 
 from src.datos.loader import cargar_empresa, precio_mano_obra, precio_material
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -33,34 +32,31 @@ class CalcRevoqueFino:
         # ceil(superficie_m2 / 8) bolsas
         cant_yeso = ceil(sup / Decimal("8"))
 
-        # Mano de obra
-        costo_mo = precio_mano_obra(datos, "REVOQUE_FINO") * sup
+        # (costo_mo se calcula dentro de la partida directamente)
 
         partidas = []
 
+        pu_yeso = precio_material(datos, "YESO_BOLSA")
         # Yeso bolsa 40kg
         partidas.append(Partida(
             concepto="Yeso bolsa 40kg",
-            cantidad=cant_yeso,
+            cantidad=Decimal(cant_yeso),
             unidad="u",
-            precio_unitario=precio_material(datos, "YESO_BOLSA"),
-            subtotal=cant_yeso * precio_material(datos, "YESO_BOLSA"),
+            precio_unitario=pu_yeso,
+            subtotal=_q(Decimal(cant_yeso) * pu_yeso),
             categoria="material"
         ))
 
+        p_mo = precio_mano_obra(datos, "REVOQUE_FINO")
         # Mano de obra
         partidas.append(Partida(
             concepto="MO revoque fino",
-            cantidad=float(sup),
+            cantidad=_q(sup),
             unidad="m2",
-            precio_unitario=costo_mo / sup,
-            subtotal=costo_mo,
+            precio_unitario=p_mo,
+            subtotal=_q(p_mo * sup),
             categoria="mano_obra"
         ))
-
-        # Extraer codigos de partidas
-        codigos = [p.concepto.split()[0] for p in partidas]
-        faltantes = materiales_faltantes(datos, codigos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
@@ -72,7 +68,8 @@ class CalcRevoqueFino:
             subtotal_materiales=sub_mat,
             subtotal_mano_obra=sub_mo,
             total=total,
-            metadata={"superficie_m2": params.superficie_m2}, advertencias=[f"Materiales no disponibles: {faltantes}"] if faltantes else [],
+            metadata={"superficie_m2": params.superficie_m2},
+            advertencias=[],
         )
 
 

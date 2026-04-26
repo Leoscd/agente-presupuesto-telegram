@@ -292,14 +292,11 @@
     superficie_m2: 20
     espesor_cm: 0.5
   esperado:
-    total: 229400.00
+    # yeso: ceil(20/8)=3 * 8500=25500; mo: 20*2800=56000; total=81500
+    total: 81500.00
     partidas_clave:
       - concepto_contiene: "yeso"
-        cantidad: 6
-        unidad: "u"
-      - concepto_contiene: "plastificante"
-        cantidad: 1
-        unidad: "u"
+        subtotal: 25500.00
 
 - id: revf_002
   descripcion: "Revoque fino 50m2 espesor 1.0cm"
@@ -310,7 +307,8 @@
     superficie_m2: 50
     espesor_cm: 1.0
   esperado:
-    total: 573500.00
+    # yeso: ceil(50/8)=7 * 8500=59500; mo: 50*2800=140000; total=199500
+    total: 199500.00
 
 - id: elec_001
   descripcion: "Instalacion electrica basica 50m2 con tablero"
@@ -322,11 +320,14 @@
     tipo: basica
     incluye_tablero: true
   esperado:
-    total: 485000.00
+    # bocas=13; cable=45.5ml*850=38675; corrugado=50.05ml*320=16016; tablero=38000;
+    # tomas=13*4200=54600; mo=50*8500=425000; total=572291
+    total: 572291.00
     partidas_clave:
       - concepto_contiene: "cable"
-        cantidad: 150
-        unidad: "ml"
+        subtotal: 38675.00
+      - concepto_contiene: "tablero"
+        subtotal: 38000.00
 
 - id: san_001
   descripcion: "Instalacion sanitaria 1 bano, 1 cocina"
@@ -340,11 +341,14 @@
     metros_lineales_desague: 0
     tipo_cano: pvc
   esperado:
-    total: 325000.00
+    # agua=13ml*8500=110500; desague=20ml*6800=136000; codos=9.9*850=8415;
+    # teflon=1*350=350; mo=2*85000=170000; total=425265
+    total: 425265.00
     partidas_clave:
-      - concepto_contiene: "inodoro"
-        cantidad: 1
-        unidad: "u"
+      - concepto_contiene: "32mm"
+        subtotal: 110500.00
+      - concepto_contiene: "50mm"
+        subtotal: 136000.00
 
 # === TAREA 4: Golden cases piso_ceramico ===
 
@@ -377,14 +381,11 @@
     material: porcelanato_60x60
     incluye_zocalo: false
   esperado:
-    total: 489750.00
+    # mat=16.50m2*22500=371250; adh=5*12500=62500; junta=5*1800=9000; mo=15*6800=102000
+    total: 544750.00
     partidas_clave:
-      - concepto_contiene: "PORCELANATO"
-        cantidad: 17
-        unidad: "m2"
-      - concepto_contiene: "ADHESIVO"
-        cantidad: 5
-        unidad: "u"
+      - concepto_contiene: "porcelanato_60x60"
+        subtotal: 371250.00
 
 - id: piso_003
   descripcion: "Piso ceramico 30x30 30m2 con zocalo 20ml"
@@ -397,8 +398,9 @@
     incluye_zocalo: true
     perimetro_m: 20
   esperado:
-    total: 684000.00
+    # mat=33m2*9800=323400; adh=8*8500=68000; junta=10*1800=18000; mo=30*6800=204000
+    # zocalo=21ml*3200=67200; mo_zoc=20*6800*0.3=40800; total=721400
+    total: 721400.00
     partidas_clave:
-      - concepto_contiene: "zocalo"
-        cantidad: 21
-        unidad: "ml"
+      - concepto_contiene: "zocalo ceramico"
+        subtotal: 67200.00

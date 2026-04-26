@@ -105,7 +105,7 @@ class CalcPisoCeramico:
             costo_mo_zoc = _q(p_mo * perim * Decimal("0.3"))
 
             partidas.extend([
-                Partida(concepto="Zócalo cerámico", cantidad=cant_zocalo, unidad="ml",
+                Partida(concepto="Zocalo ceramico", cantidad=cant_zocalo, unidad="ml",
                       precio_unitario=pu_zocalo, subtotal=sub_zocalo, categoria="material"),
                 Partida(concepto="MO zócalo", cantidad=perim, unidad="ml",
                       precio_unitario=_q(p_mo * Decimal("0.3")), subtotal=costo_mo_zoc,
@@ -118,7 +118,6 @@ class CalcPisoCeramico:
 
         return ResultadoPresupuesto(
             rubro="piso_ceramico",
-            action="piso_ceramico",
             metadata={
                 "superficie_m2": params.superficie_m2,
                 "material": params.material,

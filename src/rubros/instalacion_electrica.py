@@ -52,53 +52,58 @@ class CalcInstalacionElectrica:
         partidas = []
 
         # Cable 2x2.5
+        pu_cable = precio_material(datos, "CABLE_IRAM_2X2_5")
         partidas.append(Partida(
             concepto="Cable IRAM 2x2.5mm",
             cantidad=cable_ml,
             unidad="ml",
-            precio_unitario=precio_material(datos, "CABLE_IRAM_2X2_5"),
-            subtotal=cable_ml * precio_material(datos, "CABLE_IRAM_2X2_5"),
+            precio_unitario=pu_cable,
+            subtotal=_q(cable_ml * pu_cable),
             categoria="material"
         ))
 
-        # Cao corrugado
+        pu_cano = precio_material(datos, "CANO_CORRUGADO_20")
+        # Caño corrugado
         partidas.append(Partida(
-            concepto="Cao corrugado 20mm",
+            concepto="Caño corrugado 20mm",
             cantidad=caño_ml,
             unidad="ml",
-            precio_unitario=precio_material(datos, "CANO_CORRUGADO_20"),
-            subtotal=caño_ml * precio_material(datos, "CANO_CORRUGADO_20"),
+            precio_unitario=pu_cano,
+            subtotal=_q(caño_ml * pu_cano),
             categoria="material"
         ))
 
         # Tablero
         if cant_tablero:
+            pu_tablero = precio_material(datos, "TABLERO_MONOF_12")
             partidas.append(Partida(
                 concepto="Tablero monofasico 12 modulos",
-                cantidad=1,
+                cantidad=Decimal("1"),
                 unidad="u",
-                precio_unitario=precio_material(datos, "TABLERO_MONOF_12"),
-                subtotal=precio_material(datos, "TABLERO_MONOF_12"),
+                precio_unitario=pu_tablero,
+                subtotal=_q(pu_tablero),
                 categoria="material"
             ))
 
+        pu_toma = precio_material(datos, "TOMACORRIENTE_2P")
         # Tomas
         partidas.append(Partida(
             concepto="Tomacorriente 2P+T",
-            cantidad=cant_tomas,
+            cantidad=Decimal(str(cant_tomas)),
             unidad="u",
-            precio_unitario=precio_material(datos, "TOMACORRIENTE_2P"),
-            subtotal=cant_tomas * precio_material(datos, "TOMACORRIENTE_2P"),
+            precio_unitario=pu_toma,
+            subtotal=_q(Decimal(str(cant_tomas)) * pu_toma),
             categoria="material"
         ))
 
         # Mano de obra
-        costo_mo = precio_mano_obra(datos, "INSTALACION_ELECTRICA") * sup
+        p_mo = precio_mano_obra(datos, "INSTALACION_ELECTRICA")
+        costo_mo = _q(p_mo * sup)
         partidas.append(Partida(
             concepto="MO instalacion electrica",
-            cantidad=float(sup),
+            cantidad=sup,
             unidad="m2",
-            precio_unitario=costo_mo / sup,
+            precio_unitario=p_mo,
             subtotal=costo_mo,
             categoria="mano_obra"
         ))

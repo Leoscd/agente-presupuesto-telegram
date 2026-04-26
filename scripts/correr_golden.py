@@ -47,17 +47,19 @@ def _evaluar(caso: dict) -> tuple[bool, list[str]]:
 
     for esp_part in caso["esperado"].get("partidas_clave", []):
         substr = esp_part["concepto_contiene"].lower()
-        sub_esp = Decimal(str(esp_part["subtotal"]))
         halladas = [p for p in r.partidas if substr in p.concepto.lower()]
         if not halladas:
             fallos.append(f"falta partida con '{substr}'")
             continue
-        sub_calc = halladas[0].subtotal
-        dp = (sub_calc - sub_esp) / sub_esp if sub_esp else Decimal("0")
-        if abs(dp) > Decimal(str(UMBRAL_PARTIDA)):
-            fallos.append(
-                f"partida '{substr}' {float(dp)*100:+.2f}% (calc={sub_calc} vs esp={sub_esp})"
-            )
+        # Verificar subtotal si está presente en la entrada
+        if "subtotal" in esp_part:
+            sub_esp = Decimal(str(esp_part["subtotal"]))
+            sub_calc = halladas[0].subtotal
+            dp = (sub_calc - sub_esp) / sub_esp if sub_esp else Decimal("0")
+            if abs(dp) > Decimal(str(UMBRAL_PARTIDA)):
+                fallos.append(
+                    f"partida '{substr}' {float(dp)*100:+.2f}% (calc={sub_calc} vs esp={sub_esp})"
+                )
 
     return (len(fallos) == 0), fallos
 

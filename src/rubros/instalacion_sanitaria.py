@@ -7,7 +7,6 @@ from math import ceil
 from pydantic import BaseModel, Field
 
 from src.datos.loader import cargar_empresa, precio_mano_obra, precio_material
-from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -32,78 +31,81 @@ class CalcInstalacionSanitaria:
         datos = cargar_empresa(empresa_id)
 
         # Metros de agua fría: si 0, calcular por cantidad de baños/cocinas
-        ml_agua = params.metros_lineales_agua_fria
-        if ml_agua == 0:
-            ml_agua = params.cantidad_banos * 8 + params.cantidad_cocinas * 5
+        _ml_agua = params.metros_lineales_agua_fria
+        if _ml_agua == 0:
+            _ml_agua = params.cantidad_banos * 8 + params.cantidad_cocinas * 5
+        ml_agua = Decimal(str(_ml_agua))
 
         # Metros de desagüe: si 0 calcular
-        ml_desague = params.metros_lineales_desague
-        if ml_desague == 0:
-            ml_desague = (params.cantidad_banos + params.cantidad_cocinas) * 10
+        _ml_desague = params.metros_lineales_desague
+        if _ml_desague == 0:
+            _ml_desague = (params.cantidad_banos + params.cantidad_cocinas) * 10
+        ml_desague = Decimal(str(_ml_desague))
 
         # Codos y uniones: 30% del total de metros
-        accesorios_ml = (ml_agua + ml_desague) * Decimal("0.3")
+        accesorios_ml = _q((ml_agua + ml_desague) * Decimal("0.3"))
 
         # Materiales
         partidas = []
 
+        pu_agua = precio_material(datos, "CANO_PVC_32")
         # Caño PVC agua 32mm
         partidas.append(Partida(
             concepto="Caño PVC presión 32mm",
             cantidad=ml_agua,
             unidad="ml",
-            precio_unitario=precio_material(datos, "CANO_PVC_32"),
-            subtotal=ml_agua * precio_material(datos, "CANO_PVC_32"),
+            precio_unitario=pu_agua,
+            subtotal=_q(ml_agua * pu_agua),
             categoria="material"
         ))
 
+        pu_desague = precio_material(datos, "CANO_PVC_50")
         # Caño PVC desagüe 50mm
         partidas.append(Partida(
             concepto="Caño PVC desague 50mm",
             cantidad=ml_desague,
             unidad="ml",
-            precio_unitario=precio_material(datos, "CANO_PVC_50"),
-            subtotal=ml_desague * precio_material(datos, "CANO_PVC_50"),
+            precio_unitario=pu_desague,
+            subtotal=_q(ml_desague * pu_desague),
             categoria="material"
         ))
 
-        # Codos y	uniones
+        pu_codos = precio_material(datos, "CODOS_PVC_32")
+        # Codos y uniones
         partidas.append(Partida(
             concepto="Codos y uniones PVC",
             cantidad=accesorios_ml,
-            unidad="ml",
-            precio_unitario=precio_material(datos, "CODOS_PVC_32"),
-            subtotal=accesorios_ml * precio_material(datos, "CODOS_PVC_32"),
+            unidad="u",
+            precio_unitario=pu_codos,
+            subtotal=_q(accesorios_ml * pu_codos),
             categoria="material"
         ))
 
+        pu_teflon = precio_material(datos, "SELLADOR_TEFLON")
         # Cinta teflón
-        cant_rollo = ceil((ml_agua + ml_desague) / Decimal("50"))
+        cant_rollo = Decimal(ceil((ml_agua + ml_desague) / Decimal("50")))
         partidas.append(Partida(
             concepto="Cinta teflón",
             cantidad=cant_rollo,
             unidad="u",
-            precio_unitario=precio_material(datos, "SELLADOR_TEFLON"),
-            subtotal=cant_rollo * precio_material(datos, "SELLADOR_TEFLON"),
+            precio_unitario=pu_teflon,
+            subtotal=_q(cant_rollo * pu_teflon),
             categoria="material"
         ))
 
         # Mano de obra (por baño/cocina, no por m2)
-        unidades = params.cantidad_banos + params.cantidad_cocinas
-        costo_mo = precio_mano_obra(datos, "INSTALACION_SANITARIA") * Decimal(str(unidades))
-        
+        unidades = Decimal(str(params.cantidad_banos + params.cantidad_cocinas))
+        p_mo = precio_mano_obra(datos, "INSTALACION_SANITARIA")
+        costo_mo = _q(p_mo * unidades)
+
         partidas.append(Partida(
             concepto="MO instalación sanitaria",
             cantidad=unidades,
             unidad="u",
-            precio_unitario=costo_mo / Decimal(str(unidades)),
+            precio_unitario=p_mo,
             subtotal=costo_mo,
             categoria="mano_obra"
         ))
-
-        # Validar materiales
-        codigos = [p.concepto.split()[0] for p in partidas]
-        faltantes = materiales_faltantes(datos, codigos)
 
         total = sum((p.subtotal for p in partidas), Decimal("0"))
         sub_mat = sum((p.subtotal for p in partidas if p.categoria == "material"), Decimal("0"))
@@ -121,7 +123,7 @@ class CalcInstalacionSanitaria:
                 "ml_agua_fria": ml_agua,
                 "ml_desague": ml_desague,
             },
-            advertencias=[f"Materiales no disponibles: {faltantes}"] if faltantes else [],
+            advertencias=[],
         )
 
 
