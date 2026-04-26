@@ -42,6 +42,24 @@ ACCIONES DISPONIBLES:
 
 11. "aclaracion": pregunta(string)
 
+12. "columna_hormigon": seccion("20x20"|"25x25"|"30x30"|"30x40"|"40x40"), altura_m(float), cantidad(1-100, default 1)
+
+13. "viga_encadenado": longitud_ml(float), base_cm(15-50, default 20), alto_cm(20-60, default 30), tipo("encadenado"|"viga_dintel", default "encadenado")
+
+14. "fundacion": tipo("zapata_aislada"|"viga_fundacion", default "zapata_aislada"), largo_m(float, default 0.80), ancho_m(float, default 0.80), alto_m(float, default 0.50), cantidad(1-200, default 1), longitud_ml(float, default 0), base_cm(25-80, default 40)
+
+15. "escalera_hormigon": cantidad_escalones(4-30), ancho_m(0.80-3.0, default 1.20), huella_cm(22-35, default 28), contrahuela_cm(15-22, default 18)
+
+16. "pintura": superficie_m2, tipo("interior"|"exterior"|"esmalte_sintetico", default "interior"), manos(1-4, default 2), incluye_fijador(bool, default true)
+
+17. "cielorraso_durlock": superficie_m2, tipo("simple"|"doble", default "simple"), con_estructura(bool, default true)
+
+18. "membrana_impermeabilizante": superficie_m2, tipo("asfaltica"|"liquida", default "asfaltica"), capas(1-3, default 2)
+
+19. "estructura_metalica": longitud_ml(float), tipo_perfil("IPN_120"|"IPN_140"|"IPN_160", default "IPN_120"), proteger(bool, default true)
+
+20. "aclaracion": pregunta(string)
+
 REGLAS:
 - Devolvé SOLO JSON. Cero texto fuera del JSON.
 - "confianza": 0.0-1.0. Si < 0.7 el sistema pide confirmación.
