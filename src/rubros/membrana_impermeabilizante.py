@@ -54,7 +54,14 @@ class CalcMembrana:
                 )
             ) * Decimal(str(params.capas))
             concepto = "Membrana asfáltica rollo 10m2"
-            cant_material = Decimal(ceil(Decimal(str(params.capas)) * sup / Decimal("20")))
+        elif params.tipo == "liquida":
+            # Membrana líquida: 1 unidad cubre 20m2 por capa
+            cant_material = Decimal(
+                ceil(
+                    float(sup / CalcMembrana.RENDIMIENTO["liquida"])
+                )
+            ) * Decimal(str(params.capas))
+            concepto = "Membrana líquida"
 
         # Mano de obra
         p_mo = precio_mano_obra(datos, "MEMBRANA_IMPERMEAB")
