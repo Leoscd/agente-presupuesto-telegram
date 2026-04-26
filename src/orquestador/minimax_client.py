@@ -185,3 +185,69 @@ async def parsear_precio(texto_usuario: str, materiales: list[dict], mano_obra: 
         usd_estimado=usd,
         latencia_ms=latencia_ms,
     )
+
+
+async def parsear_imagen(image_bytes: bytes, materiales_disponibles: list[str], texto_usuario: str | None = None) -> RespuestaOrq:
+    """Vision: parsea imagen de presupuesto o lista de precios.
+    
+    Args:
+        image_bytes: contenido de la imagen en bytes
+        materiales_disponibles: lista de codigos para contexto
+        texto_usuario: caption o texto adicional opcional
+    """
+    import base64
+    t0 = time.perf_counter()
+    
+    # Encode imagen a base64
+    b64_img = base64.b64encode(image_bytes).decode("utf-8")
+    
+    # Construir mensaje con imagen
+    user_content = [
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}
+        }
+    ]
+    
+    if texto_usuario:
+        user_content.append({"type": "text", "text": texto_usuario})
+    
+    # System prompt para vision
+    system_vision = SYSTEM_PROMPT
+    
+    resp: ChatCompletion = await _cliente().chat.completions.create(
+        model=settings.minimax_model,
+        messages=[
+            {"role": "system", "content": system_vision},
+            {"role": "user", "content": user_content},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=1500,
+    )
+
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError as e:
+        log.warning("Vision: MiniMax devolvio JSON invalido: %s", e)
+        raw = {"accion": "aclaracion", "parametros": {"pregunta": "No pude ver la imagen. Podes describirlo?"}, "confianza": 0.0}
+
+    usage = resp.usage
+    tin = usage.prompt_tokens if usage else 0
+    tout = usage.completion_tokens if usage else 0
+    usd = _estimar_usd(tin, tout)
+
+    db.acumular_tokens(tin, tout, usd)
+
+    return RespuestaOrq(
+        accion=str(raw.get("accion", "")),
+        parametros=dict(raw.get("parametros", {})),
+        confianza=float(raw.get("confianza", 0.0)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
+    )
