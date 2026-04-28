@@ -410,6 +410,6 @@ def registrar(app) -> None:  # type: ignore[no-untyped-def]
     app.add_handler(CallbackQueryHandler(on_callback))
     # Foto debe estar antes de TEXT para manejar imagen + caption
     app.add_handler(MessageHandler(filters.PHOTO, on_foto))
-    # También documentos de tipo imagen
-    app.add_handler(MessageHandler(filters.Document & filters.ANY_PHOTO, on_foto))
+    # También documentos de tipo imagen (enviados sin compresión)
+    app.add_handler(MessageHandler(filters.Document.IMAGE, on_foto))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_mensaje))
