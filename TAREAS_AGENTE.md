@@ -1,6 +1,6 @@
-# TAREAS AGENTE — Fase 4: Estructura completa
-> **Fecha:** 2026-04-26 | pytest 128/128 ✅ | golden 25/25 ✅
-> **Rubros actuales:** contrapiso, cubierta_tejas, instalacion_electrica, instalacion_sanitaria, losa, mamposteria, piso_ceramico, revestimiento_banio, revoque_fino, revoque_grueso, techo_chapa
+# TAREAS AGENTE — Fase 5: Memoria de sesión conversacional
+> **Fecha:** 2026-04-27 | pytest 170/170 ✅ | golden 25/25 ✅
+> **Rubros actuales:** cielorraso_durlock, columna_hormigon, contrapiso, cubierta_tejas, escalera_hormigon, estructura_metalica, fundacion, instalacion_electrica, instalacion_sanitaria, losa, mamposteria, membrana_impermeabilizante, pintura, piso_ceramico, revestimiento_banio, revoque_fino, revoque_grueso, techo_chapa, viga_encadenado
 
 ---
 
@@ -1444,3 +1444,524 @@ asyncio.run(t())
 - **TAREA 14:** la invalidación de caché es **automática** — editar el CSV cambia su mtime y `_mtime_signature()` devuelve un tuple diferente en la próxima llamada a `cargar_empresa()`. No hace falta llamar a ninguna función de limpieza de caché.
 - **TAREA 15:** Si MiniMax-M2 rechaza el request de visión (error 400/422), implementar el fallback del PASO E que pide las medidas en texto. No bloquear al usuario.
 - **Orden de handlers:** en `registrar(app)`, `filters.PHOTO` debe ir ANTES de `filters.TEXT` para que las fotos no caigan en el handler de texto.
+- **TAREA 16:** la sesión expira a los 30 minutos. Calcular expiración con `datetime.now() - timedelta(minutes=30)` en SQLite: `WHERE updated_at > datetime('now', '-30 minutes')`.
+
+---
+
+## TAREA 16 — Memoria de sesión conversacional (Estrategia A + B)
+
+### Objetivo
+El bot debe recordar el último presupuesto calculado para cada usuario y permitir modificaciones en lenguaje natural:
+
+- Usuario: *"2 bases 80x80 con parrilla del 10"* → presupuesto fundacion ← **sesión guardada**
+- Usuario: *"lleva hierro del 10, no del 8"* → bot detecta modificación, recalcula con hierro_10mm
+- Usuario: *"son 4 bases, no 2"* → recalcula con cantidad=4
+- Usuario: *"ok, nuevo presupuesto"* → sesión cerrada, empieza de cero
+
+Además, el botón **✏️ Modificar** abre un flujo guiado para cuando el texto libre no es suficiente.
+
+---
+
+### PASO A — Nueva tabla en `src/persistencia/schema.sql`
+
+Agregar al final del archivo:
+
+```sql
+CREATE TABLE IF NOT EXISTS sesiones (
+    telegram_user_id  INTEGER PRIMARY KEY,
+    empresa_id        TEXT NOT NULL,
+    accion            TEXT NOT NULL,
+    params_json       TEXT NOT NULL,
+    resultado_id      INTEGER REFERENCES presupuestos(id) ON DELETE SET NULL,
+    updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+---
+
+### PASO B — Funciones de sesión en `src/persistencia/db.py`
+
+Agregar al final del archivo:
+
+```python
+# ---- Sesiones conversacionales ----
+
+def guardar_sesion(
+    telegram_user_id: int,
+    empresa_id: str,
+    accion: str,
+    params: dict,
+    resultado_id: int | None = None,
+) -> None:
+    """Guarda o actualiza la sesión activa del usuario."""
+    with cursor() as c:
+        c.execute(
+            """INSERT INTO sesiones(telegram_user_id, empresa_id, accion, params_json, resultado_id, updated_at)
+               VALUES(?, ?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(telegram_user_id) DO UPDATE SET
+                 empresa_id=excluded.empresa_id,
+                 accion=excluded.accion,
+                 params_json=excluded.params_json,
+                 resultado_id=excluded.resultado_id,
+                 updated_at=datetime('now')""",
+            (telegram_user_id, empresa_id, accion, json.dumps(params, ensure_ascii=False), resultado_id),
+        )
+
+
+def obtener_sesion(telegram_user_id: int) -> dict | None:
+    """Devuelve la sesión activa si existe y no expiró (30 min). None si no hay."""
+    with cursor() as c:
+        row = c.execute(
+            """SELECT accion, params_json, resultado_id, updated_at
+               FROM sesiones
+               WHERE telegram_user_id=?
+                 AND updated_at > datetime('now', '-30 minutes')""",
+            (telegram_user_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "accion": row["accion"],
+        "params": json.loads(row["params_json"]),
+        "resultado_id": row["resultado_id"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def limpiar_sesion(telegram_user_id: int) -> None:
+    """Elimina la sesión activa del usuario (inicio de nuevo presupuesto)."""
+    with cursor() as c:
+        c.execute("DELETE FROM sesiones WHERE telegram_user_id=?", (telegram_user_id,))
+```
+
+---
+
+### PASO C — Nuevo SYSTEM_PROMPT para detección de modificación en `src/orquestador/prompts.py`
+
+Agregar la constante y función:
+
+```python
+SYSTEM_PROMPT_MODIFICACION = """Sos el parser NLU de un bot de presupuestos de obra para arquitectos argentinos.
+
+El arquitecto acaba de recibir un presupuesto y quiere modificarlo. Tu tarea es:
+1. Detectar si el mensaje es una modificación del presupuesto anterior O un pedido completamente nuevo.
+2. Si es modificación: devolver los parámetros COMPLETOS actualizados (no solo el delta).
+3. Si es pedido nuevo: devolver accion="nuevo_presupuesto" para que el sistema lo procese desde cero.
+
+CONTEXTO ANTERIOR:
+Acción: {accion_anterior}
+Parámetros actuales: {params_anteriores}
+
+TIPOS DE MODIFICACIÓN COMUNES:
+- Cambio de material: "lleva hierro del 10 no del 8" → cambiar tipo_hierro
+- Cambio de cantidad: "son 4 bases no 2" → cambiar cantidad
+- Cambio de dimensión: "el techo es 8x12 no 7x10" → cambiar ancho y largo
+- Cambio de tipo: "usá porcelanato, no cerámico" → cambiar material
+- Agrego extra: "también incluí el zócalo" → activar flag
+
+REGLAS:
+- Devolvé SOLO JSON.
+- Si es modificación: {"tipo":"modificacion","accion":"<misma_accion>","parametros":{...params_completos_actualizados...},"confianza":<float>}
+- Si es pedido nuevo: {"tipo":"nuevo","accion":"aclaracion","parametros":{"pregunta":"..."},"confianza":1.0}
+- Confianza < 0.75 → usar aclaracion.
+
+EJEMPLOS:
+[Contexto: fundacion, params: {"tipo":"zapata_aislada","largo_m":0.8,"ancho_m":0.8,"profundidad_m":0.6,"cantidad":2,"tipo_hierro":"8mm"}]
+USUARIO: "lleva hierro del 10, no del 8"
+SALIDA: {"tipo":"modificacion","accion":"fundacion","parametros":{"tipo":"zapata_aislada","largo_m":0.8,"ancho_m":0.8,"profundidad_m":0.6,"cantidad":2,"tipo_hierro":"10mm"},"confianza":0.95}
+
+[Contexto: techo_chapa, params: {"ancho":7,"largo":10,"tipo_chapa":"galvanizada_075","tipo_perfil":"C100"}]
+USUARIO: "en realidad el techo es 8x12"
+SALIDA: {"tipo":"modificacion","accion":"techo_chapa","parametros":{"ancho":8,"largo":12,"tipo_chapa":"galvanizada_075","tipo_perfil":"C100"},"confianza":0.97}
+
+[Contexto: piso_ceramico, params: {"superficie_m2":20,"material":"ceramico_45x45"}]
+USUARIO: "presupuestame un techo de chapa"
+SALIDA: {"tipo":"nuevo","accion":"aclaracion","parametros":{"pregunta":"¿Qué dimensiones tiene el techo?"},"confianza":1.0}
+"""
+
+
+def build_user_message_modificacion(
+    texto_usuario: str,
+    accion_anterior: str,
+    params_anteriores: dict,
+) -> str:
+    """Construye el prompt para modificación de presupuesto existente."""
+    import json
+    system_con_contexto = SYSTEM_PROMPT_MODIFICACION.format(
+        accion_anterior=accion_anterior,
+        params_anteriores=json.dumps(params_anteriores, ensure_ascii=False, indent=2),
+    )
+    return system_con_contexto, texto_usuario.strip()
+```
+
+---
+
+### PASO D — Nueva función `parsear_modificacion()` en `src/orquestador/minimax_client.py`
+
+```python
+async def parsear_modificacion(
+    texto_usuario: str,
+    accion_anterior: str,
+    params_anteriores: dict,
+) -> RespuestaOrq:
+    """NLU para modificación de presupuesto existente. Recibe contexto de sesión."""
+    from src.orquestador.prompts import build_user_message_modificacion
+    t0 = time.perf_counter()
+
+    system_con_ctx, user_msg = build_user_message_modificacion(
+        texto_usuario, accion_anterior, params_anteriores
+    )
+
+    resp: ChatCompletion = await _cliente().chat.completions.create(
+        model=settings.minimax_model,
+        messages=[
+            {"role": "system", "content": system_con_ctx},
+            {"role": "user", "content": user_msg},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+        max_tokens=600,
+    )
+
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError:
+        raw = {"tipo": "nuevo", "accion": "aclaracion",
+               "parametros": {"pregunta": "No entendí la modificación. ¿Qué querés cambiar?"}, "confianza": 0.0}
+
+    usage = resp.usage
+    tin = usage.prompt_tokens if usage else 0
+    tout = usage.completion_tokens if usage else 0
+    usd = _estimar_usd(tin, tout)
+    db.acumular_tokens(tin, tout, usd)
+
+    # Normalizar: si es "nuevo", devolver como aclaracion para que el handler lo reencamine
+    tipo = raw.get("tipo", "nuevo")
+    if tipo == "nuevo":
+        accion = str(raw.get("accion", "aclaracion"))
+        parametros = dict(raw.get("parametros", {}))
+    else:
+        accion = str(raw.get("accion", accion_anterior))
+        parametros = dict(raw.get("parametros", params_anteriores))
+
+    return RespuestaOrq(
+        accion=accion,
+        parametros=parametros,
+        confianza=float(raw.get("confianza", 0.0)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
+    )
+```
+
+---
+
+### PASO E — Modificar `on_mensaje()` en `src/bot/handlers.py`
+
+Agregar imports al inicio:
+```python
+from src.persistencia.db import guardar_sesion, obtener_sesion, limpiar_sesion
+from src.orquestador.minimax_client import parsear_modificacion
+```
+
+**Regex de detección de reset de sesión** (agregar como constante al inicio del módulo):
+```python
+_RESET_RE = re.compile(
+    r"\b(nuevo|empezar|empecemos|de cero|olvidá|cancelar|reset|limpiar)\b",
+    re.IGNORECASE,
+)
+_MODIF_RE = re.compile(
+    r"\b(no del|no de|en vez|cambiar|cambia|usá|usa|llevar|lleva|son|es|eran|"
+    r"en realidad|mejor|agreg|quit|sacar|sac[aá]|modific|actualiz|corregí|correg)\b",
+    re.IGNORECASE,
+)
+```
+
+**Reemplazar el bloque NLU paso 1 en `on_mensaje()`** con la lógica de sesión completa:
+
+```python
+    # 0) Reset explícito de sesión
+    if _RESET_RE.search(texto):
+        limpiar_sesion(user_id)
+        # Continuar con flujo normal (no return)
+
+    # 1) Detectar si hay sesión activa Y el mensaje parece una modificación
+    sesion = obtener_sesion(user_id)
+    es_modificacion = (
+        sesion is not None
+        and _MODIF_RE.search(texto) is not None
+        and not _RESET_RE.search(texto)
+    )
+
+    await update.message.chat.send_action(action="typing")
+
+    if es_modificacion:
+        # 1a) NLU de modificación: pasa contexto de sesión
+        try:
+            resp = await parsear_modificacion(
+                texto,
+                accion_anterior=sesion["accion"],
+                params_anteriores=sesion["params"],
+            )
+        except Exception as e:
+            log.exception("Error MiniMax modificacion")
+            await update.message.reply_text(f"Error: {e}")
+            return
+
+        # Si MiniMax determinó que es pedido nuevo (tipo="nuevo"), limpiar sesión y reencaminar
+        if resp.accion == "aclaracion" and resp.raw.get("tipo") == "nuevo":
+            limpiar_sesion(user_id)
+            # Reencaminar como mensaje normal
+            try:
+                resp = await minimax_client.parsear(texto, datos.materiales_disponibles)
+            except Exception as e:
+                log.exception("Error MiniMax")
+                await update.message.reply_text(f"Error: {e}")
+                return
+        else:
+            # Es modificación confirmada: informar al usuario qué cambió
+            if sesion:
+                params_old = sesion["params"]
+                params_new = resp.parametros
+                cambios = [
+                    f"• {k}: {params_old.get(k)} → {v}"
+                    for k, v in params_new.items()
+                    if params_old.get(k) != v
+                ]
+                if cambios:
+                    await update.message.reply_text(
+                        "✏️ Modificando presupuesto:\n" + "\n".join(cambios)
+                    )
+    else:
+        # 1b) NLU estándar para pedido nuevo
+        # (incluye detección de precio si es admin)
+        _PRECIO_RE = re.compile(
+            r"\b(precio|vale|cuesta|subió|bajó|actualiz|tarifa|mano.?de.?obra)\b",
+            re.IGNORECASE,
+        )
+        if auth.es_admin(user_id) and _PRECIO_RE.search(texto):
+            try:
+                mats = listar_materiales_con_descripcion(empresa_id)
+                mos = listar_mo_con_descripcion(empresa_id)
+                resp = await parsear_precio(texto, mats, mos)
+            except Exception as e:
+                log.exception("Error MiniMax parsear_precio")
+                await update.message.reply_text(f"Error: {e}")
+                return
+        else:
+            try:
+                resp = await minimax_client.parsear(texto, datos.materiales_disponibles)
+            except Exception as e:
+                log.exception("Error MiniMax")
+                await update.message.reply_text(f"Error: {e}")
+                return
+```
+
+**Al final de `on_mensaje()`, después de guardar el presupuesto**, agregar guardado de sesión:
+
+```python
+    # Guardar sesión activa con los params de este presupuesto
+    guardar_sesion(
+        telegram_user_id=user_id,
+        empresa_id=empresa_id,
+        accion=resp.accion,
+        params=resp.parametros,
+        resultado_id=pid,
+    )
+```
+
+**Cambiar el teclado inline** para incluir el botón ✏️ Modificar:
+
+```python
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+        [InlineKeyboardButton("✏️ Modificar", callback_data=f"mod:{pid}")],
+        [
+            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+        ],
+    ])
+```
+
+---
+
+### PASO F — Manejar callback `mod:` en `on_callback()`
+
+En `on_callback()`, agregar el caso `mod`:
+
+```python
+    elif accion == "mod" and pid:
+        # Entrar en modo edición guiado
+        if q.message:
+            await q.message.reply_text(
+                "✏️ *Modo edición*\n\n"
+                "Escribí qué querés cambiar del presupuesto. Ejemplos:\n"
+                "• `lleva hierro del 10, no del 8`\n"
+                "• `son 4 bases, no 2`\n"
+                "• `el techo es 8x12`\n"
+                "• `incluí el zócalo también`\n\n"
+                "O escribí `nuevo` para empezar de cero.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        # La sesión ya está guardada con los params del presupuesto pid.
+        # El próximo mensaje de texto caerá en el flujo de modificación automáticamente.
+```
+
+---
+
+### PASO G — Tests para TAREA 16
+
+Crear `tests/test_sesion.py`:
+
+```python
+"""Tests para memoria de sesión conversacional."""
+import json
+import pytest
+from src.persistencia import db
+
+USER_ID = 99999  # user ficticio para tests
+
+
+@pytest.fixture(autouse=True)
+def setup_db():
+    db.init_db()
+    db.limpiar_sesion(USER_ID)
+    yield
+    db.limpiar_sesion(USER_ID)
+
+
+def test_guardar_y_obtener_sesion():
+    params = {"ancho": 7, "largo": 10, "tipo_chapa": "galvanizada_075"}
+    db.guardar_sesion(USER_ID, "estudio_ramos", "techo_chapa", params)
+    sesion = db.obtener_sesion(USER_ID)
+    assert sesion is not None
+    assert sesion["accion"] == "techo_chapa"
+    assert sesion["params"]["ancho"] == 7
+
+
+def test_sesion_inexistente_devuelve_none():
+    assert db.obtener_sesion(USER_ID) is None
+
+
+def test_limpiar_sesion():
+    db.guardar_sesion(USER_ID, "estudio_ramos", "techo_chapa", {"ancho": 7})
+    db.limpiar_sesion(USER_ID)
+    assert db.obtener_sesion(USER_ID) is None
+
+
+def test_sobreescribir_sesion():
+    db.guardar_sesion(USER_ID, "estudio_ramos", "techo_chapa", {"ancho": 7})
+    db.guardar_sesion(USER_ID, "estudio_ramos", "fundacion", {"cantidad": 4})
+    sesion = db.obtener_sesion(USER_ID)
+    assert sesion["accion"] == "fundacion"
+    assert sesion["params"]["cantidad"] == 4
+
+
+def test_sesion_actualiza_params_al_modificar():
+    """Simula flujo: presupuesto inicial → modificación → sesión actualizada."""
+    params_inicial = {"tipo": "zapata_aislada", "cantidad": 2, "tipo_hierro": "8mm"}
+    db.guardar_sesion(USER_ID, "estudio_ramos", "fundacion", params_inicial)
+
+    params_modificado = {**params_inicial, "tipo_hierro": "10mm"}
+    db.guardar_sesion(USER_ID, "estudio_ramos", "fundacion", params_modificado)
+
+    sesion = db.obtener_sesion(USER_ID)
+    assert sesion["params"]["tipo_hierro"] == "10mm"
+
+
+# Test de integración: parsear_modificacion con mock
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+
+@pytest.mark.asyncio
+async def test_parsear_modificacion_actualiza_hierro():
+    """parsear_modificacion() detecta cambio de tipo_hierro."""
+    raw_esperado = {
+        "tipo": "modificacion",
+        "accion": "fundacion",
+        "parametros": {
+            "tipo": "zapata_aislada",
+            "largo_m": 0.8, "ancho_m": 0.8, "profundidad_m": 0.6,
+            "cantidad": 2,
+            "tipo_hierro": "10mm",
+        },
+        "confianza": 0.95,
+    }
+    with patch("src.orquestador.minimax_client._cliente") as mock_c:
+        mock_chat = AsyncMock()
+        mock_chat.completions.create.return_value = _make_completion(raw_esperado)
+        mock_c.return_value.chat = mock_chat
+
+        from src.orquestador.minimax_client import parsear_modificacion
+        resp = await parsear_modificacion(
+            "lleva hierro del 10, no del 8",
+            accion_anterior="fundacion",
+            params_anteriores={"tipo": "zapata_aislada", "largo_m": 0.8,
+                               "ancho_m": 0.8, "profundidad_m": 0.6,
+                               "cantidad": 2, "tipo_hierro": "8mm"},
+        )
+
+    assert resp.accion == "fundacion"
+    assert resp.parametros["tipo_hierro"] == "10mm"
+    assert resp.confianza == 0.95
+
+
+@pytest.mark.asyncio
+async def test_parsear_modificacion_detecta_pedido_nuevo():
+    """parsear_modificacion() devuelve tipo=nuevo cuando es pedido distinto."""
+    raw_nuevo = {
+        "tipo": "nuevo",
+        "accion": "aclaracion",
+        "parametros": {"pregunta": "¿Qué dimensiones tiene el techo?"},
+        "confianza": 1.0,
+    }
+    with patch("src.orquestador.minimax_client._cliente") as mock_c:
+        mock_chat = AsyncMock()
+        mock_chat.completions.create.return_value = _make_completion(raw_nuevo)
+        mock_c.return_value.chat = mock_chat
+
+        from src.orquestador.minimax_client import parsear_modificacion
+        resp = await parsear_modificacion(
+            "necesito un techo de chapa",
+            accion_anterior="fundacion",
+            params_anteriores={"cantidad": 2},
+        )
+
+    assert resp.accion == "aclaracion"
+    assert resp.raw.get("tipo") == "nuevo"
+
+
+def _make_completion(raw: dict):
+    c = MagicMock()
+    c.choices[0].message.content = json.dumps(raw)
+    c.usage.prompt_tokens = 400
+    c.usage.completion_tokens = 100
+    return c
+```
+
+---
+
+### Flujo completo esperado después de TAREA 16
+
+```
+Arquitecto: "2 bases 80x80 con parrilla del 10"
+Bot: [presupuesto fundacion — hierro 10mm, 2 unidades]  ← sesión guardada
+     [📄 PDF] [✏️ Modificar] [✅ Preciso] [❌ Corregir]
+
+Arquitecto: "son 4 bases, no 2"
+Bot: ✏️ Modificando presupuesto:
+     • cantidad: 2 → 4
+     [presupuesto fundacion actualizado — 4 bases]  ← sesión actualizada
+
+Arquitecto: "y el hierro que sea del 12"
+Bot: ✏️ Modificando presupuesto:
+     • tipo_hierro: 10mm → 12mm
+     [presupuesto fundacion actualizado — 4 bases, hierro 12mm]
+
+Arquitecto: "ok, nuevo presupuesto"
+Bot: [sesión limpiada, NLU estándar para el próximo mensaje]
+```
