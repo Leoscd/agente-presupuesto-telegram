@@ -87,6 +87,7 @@ def generar_pdf(
         "fecha": fecha,
         "id_corto": id_corto,
         "cliente": cliente or "—",
+        "metadata": {},  # reservado para flags de template (borrador, etc.)
     }
     html = template.render(**contexto)
 
