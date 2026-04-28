@@ -115,3 +115,42 @@ def build_user_message_precio(
         f" Catalogo de la empresa:\n{json.dumps(ctx, ensure_ascii=False)}\n\n"
         f"Mensaje del arquitecto:\n{texto_usuario.strip()}"
     )
+
+
+# ---- Modificación de presupuesto ----
+
+SYSTEM_PROMPT_MODIFICACION = """Sos el parser NLU de un bot de presupuestos de obra para arquitectos argentinos.
+
+El arquitecto acaba de recibir un presupuesto y quiere MODIFICARLO. Tu tarea es:
+1. Detectar si el mensaje es una MODIFICACIÓN del presupuesto anterior O un pedido completamente NUEVO.
+2. Si es modificación: devolver los parámetros COMPLETOS actualizados (no solo el delta).
+3. Si es pedido nuevo: devolver accion="nuevo_presupuesto" para que el sistema lo procese desde cero.
+
+CONTEXTO ANTERIOR (presupuesto guardado):
+{contexto_anterior}
+
+PEDIDO ACTUAL DEL ARQUITECTO:
+{pedido_actual}
+
+Detección de modificación:
+- Palabras clave que indican MODIFICACIÓN: "cambia", "modifica", "que lleva", "en lugar de", "no", "pero", "otro", "más", "menos", "elevá", "bajá", "son", "no es", "lleva", "ponele", "sacale", "agregá", "quitá", "cambiá por"
+- Si el mensaje contiene estas palabras → es modificación
+- Si es un pedido völlig nuevo (sin relación al anterior) → "nuevo_presupuesto"
+
+EJEMPLO:
+ANTERIOR: {"accion":"fundacion","parametros":{"largo_m":0.8,"ancho_m":0.8,"alto_m":0.5,"cantidad":2}}
+PEDIDO: "2基底80x80 con parrilla del 10"  (nuevo pedido, no modificación)
+SALIDA: {"accion":"nuevo_presupuesto","confianza":0.95}
+
+ANTERIOR: {"accion":"techo_chapa","parametros":{"ancho":7,"largo":10,"tipo_perfil":"C100"}}
+PEDIDO: "no, lleva hierro del 10, no del 8"  (modificación detectada)
+SALIDA: {"accion":"modificacion","parametros":{"hierro":"hierro_10"},"confianza":0.92}
+
+ANTERIOR: {"accion":"columna_hormigon","parametros":{"seccion":"25x25","altura_m":3,"cantidad":8}}
+PEDIDO: "son 4 columnas, no 8"  (modificación de cantidad)
+SALIDA: {"accion":"modificacion","parametros":{"cantidad":4},"confianza":0.98}
+"""
+
+
+_MODIF_RE = r"\b(cambia|modifica|que lleva|en lugar de|no|pero|otro|más|menos|elevá|bajá|son|no es|lleva|ponele|sacale|agregá|quitá|cambiá por)\b"
+_RESET_RE = r"\b(nuevo|desde cero|empezar|otro presupuesto|reset)\b"

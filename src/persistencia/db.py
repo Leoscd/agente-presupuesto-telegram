@@ -166,3 +166,53 @@ def stats_admin() -> dict[str, Any]:
         "usd_gastado": round(row_tok["usd"], 4),
         "usd_restante": round(settings.minimax_budget_usd - row_tok["usd"], 4),
     }
+
+
+# ---- Sesiones conversacionales ----
+
+def guardar_sesion(
+    telegram_user_id: int,
+    empresa_id: str,
+    accion: str,
+    params: dict,
+    resultado_id: int | None = None,
+) -> None:
+    """Guarda o actualiza la sesión activa del usuario."""
+    with cursor() as c:
+        c.execute(
+            """INSERT INTO sesiones(telegram_user_id, empresa_id, accion, params_json, resultado_id, updated_at)
+               VALUES(?, ?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(telegram_user_id) DO UPDATE SET
+                 empresa_id=excluded.empresa_id,
+                 accion=excluded.accion,
+                 params_json=excluded.params_json,
+                 resultado_id=excluded.resultado_id,
+                 updated_at=datetime('now')""",
+            (telegram_user_id, empresa_id, accion, json.dumps(params, ensure_ascii=False), resultado_id),
+        )
+
+
+def obtener_sesion(telegram_user_id: int) -> dict | None:
+    """Devuelve la sesión activa si existe y no expiró (30 min). None si no hay."""
+    with cursor() as c:
+        row = c.execute(
+            """SELECT accion, params_json, resultado_id, updated_at
+               FROM sesiones
+               WHERE telegram_user_id=?
+                 AND updated_at > datetime('now', '-30 minutes')""",
+            (telegram_user_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "accion": row["accion"],
+        "params": json.loads(row["params_json"]),
+        "resultado_id": row["resultado_id"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def limpiar_sesion(telegram_user_id: int) -> None:
+    """Elimina la sesión activa del usuario (inicio de nuevo presupuesto)."""
+    with cursor() as c:
+        c.execute("DELETE FROM sesiones WHERE telegram_user_id=?", (telegram_user_id,))

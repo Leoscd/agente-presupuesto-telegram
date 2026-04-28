@@ -51,3 +51,13 @@ CREATE TABLE IF NOT EXISTS tokens_log (
     calls           INTEGER NOT NULL DEFAULT 0,
     UNIQUE(fecha)
 );
+
+-- Sesiones conversacionales (TTL 30 minutos)
+CREATE TABLE IF NOT EXISTS sesiones (
+    telegram_user_id  INTEGER PRIMARY KEY,
+    empresa_id        TEXT NOT NULL,
+    accion            TEXT NOT NULL,
+    params_json       TEXT NOT NULL,
+    resultado_id      INTEGER REFERENCES presupuestos(id) ON DELETE SET NULL,
+    updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);

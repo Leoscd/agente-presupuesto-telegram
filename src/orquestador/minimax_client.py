@@ -251,3 +251,74 @@ async def parsear_imagen(image_bytes: bytes, materiales_disponibles: list[str], 
         usd_estimado=usd,
         latencia_ms=latencia_ms,
     )
+
+
+# ---- Detección y parsing de modificación de presupuesto ----
+
+async def parsear_modificacion(
+    texto_usuario: str,
+    sesion_anterior: dict | None,
+    materiales_disponibles: list[str],
+) -> RespuestaOrq:
+    """NLU para detectar si el mensaje es modificación o pedido nuevo."""
+    import re
+    from src.orquestador.prompts import SYSTEM_PROMPT_MODIFICACION, _MODIF_RE, _reset_RE
+
+    if sesion_anterior is None:
+        return RespuestaOrq(
+            accion="nuevo_presupuesto", parametros={}, confianza=1.0, raw={}
+        )
+
+    modificacion_detectada = bool(re.search(_MODIF_RE, texto_usuario, re.IGNORECASE))
+    nuevo_pedido_detectado = bool(re.search(_reset_RE, texto_usuario, re.IGNORECASE))
+
+    if nuevo_pedido_detectado:
+        return RespuestaOrq(
+            accion="nuevo_presupuesto", parametros={}, confianza=1.0, raw={"trigger": "reset_regex"}
+        )
+
+    if modificacion_detectada:
+        t0 = time.perf_counter()
+        contexto = json.dumps(sesion_anterior, ensure_ascii=False)
+        user_msg = SYSTEM_PROMPT_MODIFICACION.format(
+            contexto_anterior=contexto, pedido_actual=texto_usuario.strip()
+        )
+
+        try:
+            resp = await _cliente().chat.completions.create(
+                model=settings.minimax_model,
+                messages=[
+                    {"role": "system", "content": user_msg},
+                    {"role": "user", "content": texto_usuario.strip()},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+                max_tokens=500,
+            )
+        except Exception as e:
+            log.warning("parsear_modificacion failed: %s", e)
+            return RespuestaOrq(
+                accion="modificacion", parametros={}, confianza=0.0, raw={"error": str(e)}
+            )
+
+        latencia_ms = int((time.perf_counter() - t0) * 1000)
+        content = _strip_think(resp.choices[0].message.content or "{}")
+        try:
+            raw = json.loads(content)
+        except json.JSONDecodeError:
+            raw = {"accion": "modificacion", "parametros": {}, "confianza": 0.0}
+
+        return RespuestaOrq(
+            accion=str(raw.get("accion", "modificacion")),
+            parametros=dict(raw.get("parametros", {})),
+            confianza=float(raw.get("confianza", 0.0)),
+            raw=raw,
+            latencia_ms=latencia_ms,
+        )
+
+    return RespuestaOrq(
+        accion="mismo_presupuesto",
+        parametros=sesion_anterior.get("params", {}),
+        confianza=1.0,
+        raw={"sesion": sesion_anterior},
+    )
