@@ -11,6 +11,7 @@ from src.datos.loader import (
     precio_mano_obra,
     precio_material,
 )
+from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -32,13 +33,21 @@ M2_POR_BOLSA_MAS = Decimal("20")  # m2 de masilla por bolsa
 TORN_POR_PLACA = 25               # tornillos por placa
 
 
-class CalcCielorraso:
+class _CalcCielorraso:
     accion = "cielorraso_durlock"
     schema_params = ParamsCielorraso
 
-    @staticmethod
-    def calcular(params: ParamsCielorraso, empresa_id: str) -> ResultadoPresupuesto:
+    def calcular(self, params: ParamsCielorraso, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
+
+        codigos_usados = ["PLACA_DURLOCK_12", "MASILLA_DURLOCK", "TORNILLO_DURLOCK"]
+        if params.con_estructura:
+            codigos_usados += ["PERFIL_MONTANTE_70", "PERFIL_SOLERA_70"]
+        faltantes = materiales_faltantes(datos, codigos_usados)
+        if faltantes:
+            raise ValueError(
+                f"Materiales no disponibles en {empresa_id}: {', '.join(faltantes)}"
+            )
         sup = Decimal(str(params.superficie_m2))
         capas = 2 if params.tipo == "doble" else 1
 
@@ -59,7 +68,6 @@ class CalcCielorraso:
         ]
 
         subtotal_materiales = sub_placa
-        subtotal_mo = Decimal("0")
 
         # Perfiles (solo si con_estructura)
         if params.con_estructura:
@@ -82,7 +90,7 @@ class CalcCielorraso:
             subtotal_materiales += sub_mont + sub_sol
 
         # Masilla
-        cant_bolsas_mas = Decimal(ceil(sup * Decimal(str(capas)) / M2_POR_BOLSA_MAS))
+        cant_bolsas_mas = Decimal(ceil(sup / M2_POR_BOLSA_MAS))
         pu_mas = precio_material(datos, "MASILLA_DURLOCK")
         sub_mas = _q(pu_mas * cant_bolsas_mas)
         partidas.append(Partida(concepto="Masilla Durlock bolsa 25kg", cantidad=cant_bolsas_mas,
@@ -90,10 +98,11 @@ class CalcCielorraso:
         subtotal_materiales += sub_mas
 
         # Tornillos
-        cant_torn = Decimal(ceil(float(cant_placas) * TORN_POR_PLACA))
+        cant_torn_total = int(cant_placas) * TORN_POR_PLACA
+        cant_bolsas_torn = Decimal(ceil(cant_torn_total / 500))
         pu_torn = precio_material(datos, "TORNILLO_DURLOCK")
-        sub_torn = _q(pu_torn * cant_torn)
-        partidas.append(Partida(concepto="Tornillo Durlock bolsa 500u", cantidad=cant_torn,
+        sub_torn = _q(pu_torn * cant_bolsas_torn)
+        partidas.append(Partida(concepto="Tornillo Durlock bolsa 500u", cantidad=cant_bolsas_torn,
                               unidad="u", precio_unitario=pu_torn, subtotal=sub_torn, categoria="material"))
         subtotal_materiales += sub_torn
 
@@ -102,24 +111,22 @@ class CalcCielorraso:
         costo_mo = _q(p_mo * sup)
         partidas.append(Partida(concepto="MO cielorraso Durlock", cantidad=sup, unidad="m2",
                               precio_unitario=p_mo, subtotal=costo_mo, categoria="mano_obra"))
-        subtotal_mo = costo_mo
 
-        total = subtotal_materiales + subtotal_mo
+        total = subtotal_materiales + costo_mo
 
         return ResultadoPresupuesto(
             rubro="cielorraso_durlock",
-            action="cielorraso_durlock",
             metadata={
                 "superficie_m2": params.superficie_m2,
                 "tipo": params.tipo,
                 "con_estructura": params.con_estructura,
             },
             partidas=partidas,
-            subtotal_materiales=subtotal_materiales,
-            subtotal_mano_obra=subtotal_mo,
-            total=total,
+            subtotal_materiales=_q(subtotal_materiales),
+            subtotal_mano_obra=_q(costo_mo),
+            total=_q(total),
             advertencias=[],
         )
 
 
-registrar(CalcCielorraso())
+registrar(_CalcCielorraso())

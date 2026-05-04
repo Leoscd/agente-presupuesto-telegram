@@ -12,6 +12,7 @@ from src.datos.loader import (
     precio_mano_obra,
     precio_material,
 )
+from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -43,13 +44,22 @@ def _q(v: Decimal) -> Decimal:
     return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-class CalcColumnaHormigon:
+class _CalcColumnaHormigon:
     accion = "columna_hormigon"
     schema_params = ParamsColumnaHormigon
 
-    @staticmethod
-    def calcular(params: ParamsColumnaHormigon, empresa_id: str) -> ResultadoPresupuesto:
+    def calcular(self, params: ParamsColumnaHormigon, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
+
+        faltantes = materiales_faltantes(datos, [
+            "CEMENTO_PORTLAND", "ARENA_GRUESA", "PIEDRA_6_12",
+            "PLASTIFICANTE_HERCAL", "HIERRO_12", "HIERRO_6",
+            "ALAMBRE_ATADO", "TABLON_PINO",
+        ])
+        if faltantes:
+            raise ValueError(
+                f"Materiales no disponibles en {empresa_id}: {', '.join(faltantes)}"
+            )
 
         seccion_m2 = SECCION_M2[params.seccion]
         altura = Decimal(str(params.altura_m))
@@ -174,9 +184,9 @@ class CalcColumnaHormigon:
         return ResultadoPresupuesto(
             rubro="columna_hormigon",
             partidas=partidas,
-            subtotal_materiales=sub_mat,
-            subtotal_mano_obra=sub_mo,
-            total=total,
+            subtotal_materiales=_q(sub_mat),
+            subtotal_mano_obra=_q(sub_mo),
+            total=_q(total),
             metadata={
                 "volumen_m3": float(volumen_m3),
                 "seccion": params.seccion,
@@ -187,4 +197,4 @@ class CalcColumnaHormigon:
         )
 
 
-registrar(CalcColumnaHormigon())
+registrar(_CalcColumnaHormigon())

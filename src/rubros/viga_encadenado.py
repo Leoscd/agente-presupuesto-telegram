@@ -12,6 +12,7 @@ from src.datos.loader import (
     precio_mano_obra,
     precio_material,
 )
+from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
@@ -26,13 +27,22 @@ def _q(v: Decimal) -> Decimal:
     return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-class CalcVigaEncadenado:
+class _CalcVigaEncadenado:
     accion = "viga_encadenado"
     schema_params = ParamsVigaEncadenado
 
-    @staticmethod
-    def calcular(params: ParamsVigaEncadenado, empresa_id: str) -> ResultadoPresupuesto:
+    def calcular(self, params: ParamsVigaEncadenado, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
+
+        faltantes = materiales_faltantes(datos, [
+            "CEMENTO_PORTLAND", "ARENA_GRUESA", "PIEDRA_6_12",
+            "PLASTIFICANTE_HERCAL", "HIERRO_12", "HIERRO_6",
+            "ALAMBRE_ATADO", "TABLON_PINO",
+        ])
+        if faltantes:
+            raise ValueError(
+                f"Materiales no disponibles en {empresa_id}: {', '.join(faltantes)}"
+            )
 
         base = Decimal(str(params.base_cm)) / Decimal("100")
         alto = Decimal(str(params.alto_cm)) / Decimal("100")
@@ -151,9 +161,9 @@ class CalcVigaEncadenado:
         return ResultadoPresupuesto(
             rubro="viga_encadenado",
             partidas=partidas,
-            subtotal_materiales=sub_mat,
-            subtotal_mano_obra=sub_mo,
-            total=total,
+            subtotal_materiales=_q(sub_mat),
+            subtotal_mano_obra=_q(sub_mo),
+            total=_q(total),
             metadata={
                 "volumen_m3": float(volumen_m3),
                 "longitud_ml": params.longitud_ml,
@@ -165,4 +175,4 @@ class CalcVigaEncadenado:
         )
 
 
-registrar(CalcVigaEncadenado())
+registrar(_CalcVigaEncadenado())
