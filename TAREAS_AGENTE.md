@@ -1965,3 +1965,599 @@ Bot: ✏️ Modificando presupuesto:
 Arquitecto: "ok, nuevo presupuesto"
 Bot: [sesión limpiada, NLU estándar para el próximo mensaje]
 ```
+
+---
+
+## TAREA 16-FIX — Corregir implementación Tarea 16 e integrar al bot
+
+> **Prioridad:** BLOQUEANTE — la sesión conversacional existe como infraestructura aislada pero **nunca se activa en el flujo real del bot**.
+
+### PASO A — Corregir errores críticos en `src/orquestador/minimax_client.py`
+
+**A1. Typo en import (NameError en runtime):**
+
+Buscar la línea que contiene `_reset_RE` y reemplazarla:
+```python
+# MAL
+from src.orquestador.prompts import SYSTEM_PROMPT_MODIFICACION, _MODIF_RE, _reset_RE
+# BIEN
+from src.orquestador.prompts import SYSTEM_PROMPT_MODIFICACION, _MODIF_RE, _RESET_RE
+```
+Y en todo el cuerpo de `parsear_modificacion()`, reemplazar `_reset_RE` por `_RESET_RE`.
+
+**A2. Instanciaciones inválidas de `RespuestaOrq` (TypeError en runtime):**
+
+Todas las instanciaciones de `RespuestaOrq` dentro de `parsear_modificacion()` que ocurren en ramas de early-return (sesión nula, pedido nuevo detectado, excepción) deben incluir los campos requeridos con valores neutros:
+```python
+return RespuestaOrq(
+    accion="nuevo_presupuesto",
+    parametros={},
+    confianza=1.0,
+    raw="{}",
+    tokens_input=0,
+    tokens_output=0,
+    usd_estimado=0.0,
+    latencia_ms=0,
+)
+```
+
+**A3. `parsear_modificacion()` — firma y comportamiento:**
+
+La función debe recibir exactamente estos parámetros:
+```python
+async def parsear_modificacion(
+    texto_usuario: str,
+    accion_anterior: str,
+    params_anteriores: dict,
+) -> RespuestaOrq:
+```
+El `sesion_anterior` dict se descompone en el caller (handlers.py), no aquí.
+
+El prompt se construye así:
+```python
+contexto_anterior = json.dumps(
+    {"accion": accion_anterior, "parametros": params_anteriores},
+    ensure_ascii=False,
+)
+prompt = SYSTEM_PROMPT_MODIFICACION.format(
+    contexto_anterior=contexto_anterior,
+    pedido_actual=texto_usuario,
+)
+```
+
+La respuesta de MiniMax puede ser:
+- `{"accion": "modificacion", "parametros": {...params_completos_actualizados...}, "confianza": 0.95}`
+- `{"accion": "nuevo_presupuesto", "confianza": 0.9}`
+
+Si MiniMax devuelve `"accion": "modificacion"`, retornar `RespuestaOrq` con esos parámetros completos y la acción original (`accion_anterior`), para que el router pueda recalcular directamente:
+```python
+if data["accion"] == "modificacion":
+    return RespuestaOrq(
+        accion=accion_anterior,          # rubro original, no "modificacion"
+        parametros=data["parametros"],   # params completos actualizados
+        confianza=data.get("confianza", 0.9),
+        raw=content,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia,
+    )
+```
+Si devuelve `"nuevo_presupuesto"`, retornar con `accion="nuevo_presupuesto"` y `tokens_input=tin, tokens_output=tout, usd_estimado=usd, latencia_ms=latencia`.
+
+Siempre llamar `db.acumular_tokens(tin, tout, usd)` cuando se consumen tokens reales.
+
+**A4. `SYSTEM_PROMPT_MODIFICACION` — instrucción de params completos:**
+
+En `src/orquestador/prompts.py`, modificar el ejemplo del prompt para dejar claro que se devuelven params completos, no solo el delta:
+```
+ANTERIOR: {"accion":"columna_hormigon","parametros":{"seccion":"25x25","altura_m":3,"cantidad":8}}
+PEDIDO: "son 4 columnas, no 8"
+SALIDA: {"accion":"modificacion","parametros":{"seccion":"25x25","altura_m":3,"cantidad":4},"confianza":0.98}
+                                                 ^^^^^^^^^^^ todos los params, no solo cantidad ^^^^^^^^^^^
+```
+
+**A5. `_MODIF_RE` — quitar palabras demasiado genéricas:**
+
+```python
+# MAL — "no" y "son" disparan falsos positivos en casi cualquier mensaje
+_MODIF_RE = r"\b(cambia|modifica|que lleva|en lugar de|no|pero|otro|más|menos|elevá|bajá|son|no es|lleva|ponele|sacale|agregá|quitá|cambiá por)\b"
+
+# BIEN — solo patrones que indican claramente una modificación
+_MODIF_RE = r"\b(cambiá?|modific[aá]|en lugar de|no del|no es del|sino|en vez de|lleva|ponele|sacale|agregá|quitá|cambiá? por|no lleva|más bien|mejor|eran|en realidad)\b"
+```
+
+---
+
+### PASO B — Integrar sesión en `src/bot/handlers.py`
+
+Esta es la parte más importante. El flujo actual de `on_mensaje()` ignora completamente la sesión.
+
+**Imports a agregar al inicio del archivo** (junto a los imports existentes):
+```python
+from src.persistencia.db import guardar_sesion, obtener_sesion, limpiar_sesion
+from src.orquestador.minimax_client import parsear_modificacion
+from src.orquestador.prompts import _MODIF_RE, _RESET_RE
+import re
+```
+
+**Reemplazar el bloque `on_mensaje()`** (mantener la lógica existente de Tareas 1-15, agregar la detección de sesión al inicio):
+
+```python
+async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user is None or update.message is None or update.message.text is None:
+        return
+
+    user_id = update.effective_user.id
+    texto = update.message.text
+
+    try:
+        empresa_id = auth.resolver_empresa(user_id)
+    except PermissionError as e:
+        await update.message.reply_text(str(e))
+        return
+
+    datos = cargar_empresa(empresa_id)
+
+    # --- NUEVO: detección de sesión activa ---
+    sesion = obtener_sesion(user_id)
+
+    if sesion and re.search(_RESET_RE, texto, re.IGNORECASE):
+        # El usuario quiere empezar desde cero
+        limpiar_sesion(user_id)
+        sesion = None
+        await update.message.reply_text("🆕 Sesión reiniciada. Contame el nuevo presupuesto.")
+        return
+
+    if sesion and re.search(_MODIF_RE, texto, re.IGNORECASE):
+        # Intento de modificación del presupuesto anterior
+        await update.message.chat.send_action(action="typing")
+        try:
+            resp = await parsear_modificacion(
+                texto_usuario=texto,
+                accion_anterior=sesion["accion"],
+                params_anteriores=sesion["params"],
+            )
+        except Exception as e:  # noqa: BLE001
+            log.exception("Error parsear_modificacion")
+            await update.message.reply_text(f"Error al modificar: {e}")
+            return
+
+        if resp.accion == "nuevo_presupuesto":
+            # MiniMax determinó que es un pedido nuevo, caer al flujo estándar
+            limpiar_sesion(user_id)
+            sesion = None
+            # NO hacer return — continuar al flujo NLU estándar abajo
+
+        else:
+            # Es una modificación real — recalcular con params actualizados
+            try:
+                resultado = router.despachar(resp.accion, resp.parametros, empresa_id)
+            except (router.AccionDesconocida, ValueError) as e:
+                await update.message.reply_text(f"No pude recalcular: {e}")
+                return
+
+            pid, id_corto = db.guardar_presupuesto(
+                empresa_id=empresa_id,
+                telegram_user_id=user_id,
+                input_texto=texto,
+                minimax_json=resp.raw,
+                minimax_confianza=resp.confianza,
+                resultado=resultado,
+                tokens_input=resp.tokens_input,
+                tokens_output=resp.tokens_output,
+                usd_estimado=resp.usd_estimado,
+                latencia_ms=resp.latencia_ms,
+            )
+            guardar_sesion(user_id, empresa_id, resp.accion, resp.parametros, pid)
+
+            texto_ok = formatter.formatear_presupuesto(resultado, id_corto)
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+                [
+                    InlineKeyboardButton("✏️ Modificar", callback_data=f"mod:{pid}"),
+                    InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
+                    InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+                ],
+            ])
+            await update.message.reply_text(
+                f"✏️ Modificando presupuesto:\n{texto_ok}",
+                parse_mode=ParseMode.MARKDOWN_V2,
+                reply_markup=kb,
+            )
+            return
+    # --- FIN detección de sesión ---
+
+    # 1) NLU con MiniMax (flujo estándar — sin cambios respecto a Tarea 15)
+    await update.message.chat.send_action(action="typing")
+    try:
+        resp = await minimax_client.parsear(texto, datos.materiales_disponibles)
+    except Exception as e:  # noqa: BLE001
+        log.exception("Error MiniMax")
+        await update.message.reply_text(f"Error consultando el orquestador: {e}")
+        return
+
+    # ... (mantener el resto del flujo existente sin cambios) ...
+
+    # Al final, ANTES de responder al usuario, guardar la sesión:
+    guardar_sesion(user_id, empresa_id, resp.accion, resp.parametros, pid)
+
+    # El teclado inline debe incluir el botón Modificar:
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+        [
+            InlineKeyboardButton("✏️ Modificar", callback_data=f"mod:{pid}"),
+            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+        ],
+    ])
+```
+
+**Agregar manejo del callback `mod:` en `on_callback()`:**
+
+```python
+elif accion == "mod" and pid:
+    # El usuario presionó el botón ✏️ Modificar
+    sesion = obtener_sesion(q.from_user.id)
+    if sesion:
+        await q.message.reply_text(
+            "✏️ ¿Qué querés modificar del presupuesto? "
+            "(ej: 'en lugar de 4 columnas, son 6' o 'cambiá el hierro por del 12')"
+        )
+    else:
+        await q.message.reply_text(
+            "⚠️ La sesión expiró (30 min). Pedí un nuevo presupuesto."
+        )
+```
+
+---
+
+### PASO C — Tests faltantes (agregar a `tests/test_sesion.py`)
+
+```python
+def test_sesion_expirada(self, monkeypatch):
+    """Sesión con updated_at > 30 min devuelve None."""
+    import sqlite3
+    from src.config import settings
+    db.guardar_sesion(111, "estudio_ramos", "losa", {"ancho": 5})
+    # Forzar updated_at al pasado
+    conn = sqlite3.connect(settings.db_path)
+    conn.execute(
+        "UPDATE sesiones SET updated_at=datetime('now','-31 minutes') WHERE telegram_user_id=111"
+    )
+    conn.commit(); conn.close()
+    assert db.obtener_sesion(111) is None
+
+
+def test_parsear_modificacion_mock():
+    """parsear_modificacion con mock de MiniMax devuelve RespuestaOrq correcta."""
+    from unittest.mock import AsyncMock, patch, MagicMock
+    from src.orquestador.minimax_client import parsear_modificacion
+    import asyncio, json
+
+    raw = json.dumps({"accion": "modificacion", "parametros": {"seccion": "25x25", "altura_m": 3, "cantidad": 4}, "confianza": 0.98})
+    mock_resp = MagicMock()
+    mock_resp.choices[0].message.content = raw
+    mock_resp.usage.prompt_tokens = 200
+    mock_resp.usage.completion_tokens = 80
+
+    with patch("src.orquestador.minimax_client._client") as mc:
+        mc.chat.completions.create = AsyncMock(return_value=mock_resp)
+        result = asyncio.run(parsear_modificacion(
+            texto_usuario="son 4 columnas, no 8",
+            accion_anterior="columna_hormigon",
+            params_anteriores={"seccion": "25x25", "altura_m": 3, "cantidad": 8},
+        ))
+    assert result.accion == "columna_hormigon"
+    assert result.parametros["cantidad"] == 4
+    assert result.confianza == 0.98
+
+
+def test_parsear_modificacion_nuevo_pedido():
+    """parsear_modificacion retorna nuevo_presupuesto si MiniMax lo indica."""
+    from unittest.mock import AsyncMock, patch, MagicMock
+    from src.orquestador.minimax_client import parsear_modificacion
+    import asyncio, json
+
+    raw = json.dumps({"accion": "nuevo_presupuesto", "confianza": 0.9})
+    mock_resp = MagicMock()
+    mock_resp.choices[0].message.content = raw
+    mock_resp.usage.prompt_tokens = 150
+    mock_resp.usage.completion_tokens = 40
+
+    with patch("src.orquestador.minimax_client._client") as mc:
+        mc.chat.completions.create = AsyncMock(return_value=mock_resp)
+        result = asyncio.run(parsear_modificacion(
+            texto_usuario="haceme un techo de 50m2",
+            accion_anterior="columna_hormigon",
+            params_anteriores={"seccion": "25x25", "altura_m": 3, "cantidad": 8},
+        ))
+    assert result.accion == "nuevo_presupuesto"
+```
+
+---
+
+### PASO D — Verificación final TAREA 16-FIX
+
+```bash
+# Correr todos los tests — deben seguir siendo 174/174
+pytest -x -q
+
+# Test específico de sesión
+pytest tests/test_sesion.py -v
+
+# Smoke test manual del flujo de sesión (requiere bot corriendo):
+# 1. Enviar: "2 columnas 25x25 de 3m"
+#    → Bot responde presupuesto con botones [PDF] [✏️ Modificar] [✅] [❌]
+# 2. Enviar: "son 4 columnas, no 2"
+#    → Bot responde "✏️ Modificando presupuesto:" con nuevo cálculo
+# 3. Enviar: "nuevo presupuesto"
+#    → Bot responde "🆕 Sesión reiniciada"
+```
+
+---
+
+## TAREA 17 — PDF con imágenes del trabajo
+
+### Objetivo
+
+Cuando el usuario envía **fotos de la obra o del trabajo a realizar**, esas imágenes se guardan en la sesión activa y se **incluyen en el PDF del presupuesto** en una sección "Fotos del trabajo" con las imágenes dispuestas en el documento.
+
+### Flujo esperado
+
+```
+Arquitecto: [foto de la losa a reparar]
+Bot: 📎 Imagen guardada (se adjuntará al próximo presupuesto).
+
+Arquitecto: "haceme un presupuesto de revoque fino para 45m2"
+Bot: [presupuesto de revoque fino]
+     [📄 Generar PDF] [✏️ Modificar] [✅] [❌]
+
+Arquitecto: presiona [📄 Generar PDF]
+Bot: [PDF con sección de presupuesto + sección "Fotos del trabajo" con la imagen]
+```
+
+El usuario también puede enviar la foto y el texto juntos (en el mismo mensaje con caption). En ese caso se procesa el presupuesto Y se guarda la imagen.
+
+---
+
+### PASO A — Almacenar fotos en disco
+
+Crear directorio `data/imagenes/<telegram_user_id>/` para guardar las imágenes temporalmente.
+
+En `src/bot/handlers.py`, en la función `on_foto()` existente, **agregar al inicio** (antes de parsear_imagen):
+
+```python
+# Siempre guardar la foto en disco y asociarla a la sesión
+foto = update.message.photo[-1]  # mayor resolución
+file = await ctx.bot.get_file(foto.file_id)
+img_dir = Path(settings.db_path).parent / "imagenes" / str(user_id)
+img_dir.mkdir(parents=True, exist_ok=True)
+img_path = img_dir / f"{foto.file_unique_id}.jpg"
+await file.download_to_drive(str(img_path))
+
+# Agregar imagen a la sesión activa (o crear entrada de imágenes pendientes)
+_agregar_imagen_sesion(user_id, str(img_path))
+
+# Si el mensaje NO tiene caption (texto con pedido), solo confirmar y salir
+if not update.message.caption:
+    await update.message.reply_text("📎 Imagen guardada. Se adjuntará al próximo presupuesto.")
+    return
+# Si tiene caption → continuar con parsear_imagen() como antes
+```
+
+Crear función auxiliar privada en handlers.py:
+```python
+def _agregar_imagen_sesion(user_id: int, img_path: str) -> None:
+    """Agrega una imagen a la lista de imágenes pendientes de la sesión."""
+    sesion = obtener_sesion(user_id)
+    if sesion is None:
+        # Crear sesión mínima solo para guardar imágenes
+        guardar_sesion(user_id, empresa_id="", accion="__imagenes__", params={"imagenes": [img_path]})
+    else:
+        imagenes = sesion["params"].get("imagenes", [])
+        imagenes.append(img_path)
+        params_actualizados = {**sesion["params"], "imagenes": imagenes}
+        guardar_sesion(user_id, sesion.get("empresa_id", ""), sesion["accion"], params_actualizados, sesion.get("resultado_id"))
+```
+
+**Problema:** `guardar_sesion()` necesita `empresa_id`. Para el caso de sesión solo de imágenes (sin presupuesto aún), usar `empresa_id=""` y `accion="__imagenes__"` como placeholder.
+
+---
+
+### PASO B — Pasar imágenes al generador de PDF
+
+Modificar `src/pdf/generador.py`, función `generar_pdf()`, agregar parámetro:
+
+```python
+def generar_pdf(
+    resultado: ResultadoPresupuesto,
+    datos_empresa: DatosEmpresa,
+    destino_dir: Path,
+    cliente: str | None = None,
+    imagenes: list[Path] | None = None,   # NUEVO
+) -> Path:
+```
+
+Agregar las imágenes al contexto del template:
+```python
+contexto = {
+    "empresa": datos_empresa.config,
+    "resultado": resultado,
+    "fecha": fecha,
+    "id_corto": id_corto,
+    "cliente": cliente or "—",
+    "metadata": {},
+    "imagenes": [str(p) for p in (imagenes or []) if Path(p).exists()],  # NUEVO
+}
+```
+
+---
+
+### PASO C — Actualizar template HTML
+
+En `src/pdf/templates/default/presupuesto.html.j2`, agregar al final del body (después de la tabla de partidas):
+
+```html
+{% if imagenes %}
+<section class="fotos-trabajo">
+  <h2>Fotos del trabajo</h2>
+  <div class="fotos-grid">
+    {% for img_path in imagenes %}
+    <figure>
+      <img src="file://{{ img_path }}" alt="Foto del trabajo {{ loop.index }}">
+      <figcaption>Imagen {{ loop.index }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+```
+
+En `styles.css`, agregar:
+```css
+.fotos-trabajo {
+    margin-top: 2rem;
+    page-break-before: auto;
+}
+.fotos-trabajo h2 {
+    font-size: 1.1rem;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.3rem;
+    margin-bottom: 1rem;
+}
+.fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+.fotos-grid figure {
+    margin: 0;
+    text-align: center;
+}
+.fotos-grid img {
+    max-width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.fotos-grid figcaption {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.3rem;
+}
+```
+
+---
+
+### PASO D — Conectar imágenes de sesión al generar PDF
+
+En `src/bot/handlers.py`, en `_enviar_pdf()`, extraer las imágenes de la sesión antes de llamar a `generador.generar_pdf()`:
+
+```python
+async def _enviar_pdf(update: Update, ctx: ContextTypes.DEFAULT_TYPE, pid: int) -> None:
+    # (código existente para obtener resultado y datos_empresa)
+    ...
+
+    # NUEVO: obtener imágenes de la sesión activa
+    user_id = update.effective_user.id if update.effective_user else 0
+    sesion = obtener_sesion(user_id)
+    imagenes: list[Path] = []
+    if sesion:
+        imagenes = [Path(p) for p in sesion["params"].get("imagenes", []) if Path(p).exists()]
+
+    pdf_path = generador.generar_pdf(resultado, datos, TMP_OUT, imagenes=imagenes)  # agregar imagenes=imagenes
+    ...
+```
+
+---
+
+### PASO E — Tests para TAREA 17
+
+Crear `tests/test_imagenes_pdf.py`:
+
+```python
+"""Tests para imágenes en PDF (Tarea 17)."""
+import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+from decimal import Decimal
+
+from src.pdf import generador
+from src.rubros.base import ResultadoPresupuesto, Partida
+
+
+def _resultado_dummy() -> ResultadoPresupuesto:
+    return ResultadoPresupuesto(
+        rubro="revoque_fino",
+        partidas=[Partida(descripcion="Revoque", unidad="m2", cantidad=Decimal("45"), precio_unitario=Decimal("1000"), subtotal=Decimal("45000"))],
+        total=Decimal("45000"),
+        advertencias=[],
+    )
+
+
+def test_generar_pdf_sin_imagenes(tmp_path):
+    """generar_pdf acepta imagenes=None sin error."""
+    from src.datos.loader import DatosEmpresa, ConfigEmpresa, Empresa
+    datos = MagicMock(spec=DatosEmpresa)
+    datos.config.id = "_plantilla"
+    datos.config.nombre = "Test"
+    # No generar PDF real (WeasyPrint puede no estar disponible)
+    with patch("src.pdf.generador._WEASY_OK", False):
+        with pytest.raises(RuntimeError, match="WeasyPrint"):
+            generador.generar_pdf(_resultado_dummy(), datos, tmp_path, imagenes=None)
+
+
+def test_contexto_incluye_imagenes(tmp_path):
+    """El contexto de Jinja incluye la lista de imágenes existentes."""
+    img1 = tmp_path / "foto1.jpg"
+    img1.write_bytes(b"fake-image")
+    img_no_existe = tmp_path / "inexistente.jpg"
+
+    capturado = {}
+    original_render = None
+
+    import src.pdf.generador as gen_module
+    env_real = gen_module._build_env(gen_module.DEFAULT_TEMPLATE_DIR)
+
+    def mock_render(**ctx):
+        capturado.update(ctx)
+        return "<html></html>"
+
+    tpl = MagicMock()
+    tpl.render = mock_render
+
+    from src.datos.loader import DatosEmpresa
+    datos = MagicMock(spec=DatosEmpresa)
+    datos.config.id = "_plantilla"
+    datos.config.nombre = "Test"
+
+    with patch("src.pdf.generador._build_env", return_value=MagicMock(get_template=MagicMock(return_value=tpl))):
+        with patch("src.pdf.generador._WEASY_OK", False):
+            try:
+                gen_module.generar_pdf(_resultado_dummy(), datos, tmp_path, imagenes=[img1, img_no_existe])
+            except RuntimeError:
+                pass
+
+    # Solo img1 existe → solo img1 en el contexto
+    assert str(img1) in capturado.get("imagenes", [])
+    assert str(img_no_existe) not in capturado.get("imagenes", [])
+```
+
+---
+
+### Verificación final TAREA 17
+
+```bash
+pytest tests/test_imagenes_pdf.py -v
+pytest -x -q  # suite completo — no debe haber regresiones
+
+# Smoke test manual:
+# 1. Enviar foto al bot
+#    → "📎 Imagen guardada"
+# 2. Enviar "haceme un presupuesto de revoque fino 45m2"
+#    → presupuesto con botones
+# 3. Presionar [📄 Generar PDF]
+#    → PDF con tabla de presupuesto + sección "Fotos del trabajo" con la foto
+```
