@@ -221,3 +221,44 @@ tfoot tr.total td {
   max-height: 48px;
   margin-bottom: 6px;
 }
+
+/* Fotos del trabajo */
+.fotos-trabajo {
+  margin-top: 24px;
+  page-break-before: auto;
+}
+
+.fotos-trabajo h2 {
+  font-size: 11pt;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.fotos-grid figure {
+  margin: 0;
+  text-align: center;
+}
+
+.fotos-grid img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.fotos-grid figcaption {
+  font-size: 7.5pt;
+  color: var(--muted);
+  margin-top: 4px;
+}

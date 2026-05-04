@@ -1,0 +1,11 @@
+{
+  "children": [
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Pendiente: obtener el ID de la database de clases en Notion para configurar recordatorios."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Problema"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Las IDs que tengo en TOOLS.md no funcionan. La integración no tiene acceso a esas bases de datos."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Bases de datos disponibles"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "- Reading List\n- Journal\n- Task List\n(Ninguna es la de clases)"}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Solución"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Compartir la database 'Clases' con la integración 'Alfred' en Notion, o darme el ID correcto."}}]}}
+  ]
+}

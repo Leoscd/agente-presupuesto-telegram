@@ -1,0 +1,14 @@
+{
+  "children": [
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Resumen Ejecutivo"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Investigacion sobre IA aplicada a BIM. Mercado proyectado: $25B para 2033 (13.5% CAGR). Los ahorros en materiales con generative design pueden llegar al 30%."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Fuentes - URLs"}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "WJARR - AI for BIM (PDF)", "link": {"url": "https://wjarr.com/sites/default/files/fulltext_pdf/WJARR-2024-3517.pdf"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "Pinnacle - BIM Trends 2024", "link": {"url": "https://pinnacleinfotech.com/embracing-the-future-innovative-bim-trends-in-2024-and-beyond/"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "MDPI - AI in BIM Transformation", "link": {"url": "https://www.mdpi.com/2076-3417/15/18/9956"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "TechnoStruct - AI and ML Enhancing BIM", "link": {"url": "https://www.technostruct.com/blog/2024/04/19/the-role-of-ai-and-machine-learning-enhancing-bim-workflows/"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "NeoBIM - Complete Guide AI in BIM 2025", "link": {"url": "https://neobim.ai/the-complete-guide-to-ai-in-building-information-modeling-bim-2025/"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "Medium - BIM Trends 2024", "link": {"url": "https://bimmodelingservicesusa.medium.com/top-bim-trends-shaping-the-construction-industry-in-2024-15b35c75b4eb"}}}]}},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "TaalTech - Future of BIM", "link": {"url": "https://www.taaltech.com/the-future-of-bim-in-architectural-design-trends-and-innovations-for-2024/"}}}]}}
+  ]
+}

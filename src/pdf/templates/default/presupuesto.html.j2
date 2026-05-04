@@ -86,6 +86,20 @@
   </section>
   {% endif %}
 
+  {% if imagenes %}
+  <section class="fotos-trabajo">
+    <h2>Fotos del trabajo</h2>
+    <div class="fotos-grid">
+      {% for img_path in imagenes %}
+      <figure>
+        <img src="file://{{ img_path }}" alt="Foto {{ loop.index }}">
+        <figcaption>Imagen {{ loop.index }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <footer class="ftr">
     <div>Presupuesto válido por 30 días desde la fecha de emisión.</div>
     <div>Los precios pueden variar por actualización de insumos.</div>

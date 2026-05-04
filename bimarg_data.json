@@ -1,0 +1,14 @@
+{
+  "children": [
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "SERVICIOS y ACTIVIDADES:"}}]},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "Produccion BIM (modelado 3D, documentacion tecnica)"}}]},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "BIMGRID: 5 frameworks (RIBA, Lean, Last Planner, BIMBOX, ISO 19650/7817)"}}]},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "Coordinacion BIM para estudios y constructoras"}}]},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "Gestion de proyectos con metodologia BIM"}}]},
+    {"object": "block", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"text": {"content": "App de cotizacion: app.bimarg.com"}}]},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "CASOS DE EXITO:"}}]},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "PROAARQ (Neuquen): 77 laminas por casa, 58% margen neto, USD 69,000/anio. Sin contratar gente."}}]},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "DATOS DE CONTACTO:"}}]},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "WhatsApp: +54 299 628 7652\nWeb: bimarg.com\nApp: app.bimarg.com\nInstagram: @bimarg.arq\nGoogle: 5.0 estrellas (11 reviews)"}}]}
+  ]
+}

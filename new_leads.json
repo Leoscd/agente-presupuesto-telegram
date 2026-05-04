@@ -1,0 +1,9 @@
+[
+  {"Nombre": "🔵 Concept Studio BIM", "Tipo": "Estudio de Arquitectura", "Ubicacion": "Argentina", "Web": "https://www.concept-studio.com.ar", "Contexto": "Consultoria, Modelado BIM y Documentacion. MMO+Arquitecto con +30 anos. Enfoque trabajo colaborativo.", "Estado": "Pendiente"},
+  {"Nombre": "🔵 Modeler", "Tipo": "Estudio de Arquitectura", "Ubicacion": "Buenos Aires", "Web": "https://modeler.com.ar", "Contexto": "Servicios BIM/Revit en Buenos Aires. Integracion tecnologias.", "Estado": "Pendiente"},
+  {"Nombre": "🔵 m2-bim", "Tipo": "Estudio de Arquitectura", "Ubicacion": "Argentina", "Web": "https://www.m2-bim.com", "Contexto": "Modelado BIM, deteccion de interferencias, ingenieria de valor, generacion de documentacion.", "Estado": "Pendiente"},
+  {"Nombre": "🟠 CAMARCO D3 Moron", "Tipo": "Constructora", "Ubicacion": "Moron, Buenos Aires", "Web": "https://www.camarco.org.ar", "Telefono": "+54 11 4628-9171", "Email": "administracion@capba3.org.ar", "Estado": "Pendiente"},
+  {"Nombre": "🟠 Constructora Argentina", "Tipo": "Constructora", "Ubicacion": "Argentina", "Web": "https://arqa.com", "Contexto": "Portal de arquitectura y construccion. Noticias BIM Argentina.", "Estado": "Pendiente"},
+  {"Nombre": "🟢 CAPBA Distrito 1 La Plata", "Tipo": "Colegio de Arquitectos", "Ubicacion": "La Plata", "Web": "https://www.capbauno.org", "Email": "info@capbauno.org", "Estado": "Pendiente"},
+  {"Nombre": "🟢 CAPBA Distrito 9 Mar del Plata", "Tipo": "Colegio de Arquitectos", "Ubicacion": "Mar del Plata", "Web": "https://www.capba9.org.ar", "Email": "arq@capba9.org.ar", "Estado": "Pendiente"}
+]

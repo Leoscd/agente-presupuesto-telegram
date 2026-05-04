@@ -72,6 +72,7 @@ def generar_pdf(
     datos_empresa: DatosEmpresa,
     destino_dir: Path,
     cliente: str | None = None,
+    imagenes: list[Path] | None = None,
 ) -> Path:
     destino_dir.mkdir(parents=True, exist_ok=True)
 
@@ -88,6 +89,7 @@ def generar_pdf(
         "id_corto": id_corto,
         "cliente": cliente or "—",
         "metadata": {},  # reservado para flags de template (borrador, etc.)
+        "imagenes": [str(p) for p in (imagenes or []) if Path(p).exists()],
     }
     html = template.render(**contexto)
 

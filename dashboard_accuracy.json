@@ -1,0 +1,14 @@
+{
+  "children": [
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Databox"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Gratis: 1 user, 3 data sources, basic dashboards. 120+ integraciones."}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Accuracy: CON - Algunas integraciones no son precisas o actualizadas en tiempo real. Usuarios reportan que los datos no siempre son exactos."}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Veredicto: ⚠️ Poca precision en algunas fuentes. Para datos criticos, verificar manualmente."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Google Looker Studio"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Gratis: 100% gratuito, 1,200+ fuentes (solo 24 Google-built estables)."}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Accuracy: ✅ ALTA - Los datos se sincronizan automaticamente y permanecen precisos en tiempo real. 'I know I'm looking at today's numbers'."}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Veredicto: 👍 La mejor precision para fuentes Google (GA4, YouTube, Ads). Terceros pueden ser peu00F1 stables."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Resumen Comparativo"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Looker Studio > Databox en precision. Para tus cursos: Looker Studio es mas confiable, gratis, y se integra perfecto con Google."}}]}}
+  ]
+}

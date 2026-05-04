@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     minimax_model: str = Field("MiniMax-M2", alias="MINIMAX_MODEL")
     minimax_vision_model: str = Field("MiniMax-M2.1", alias="MINIMAX_VISION_MODEL")
 
+    tavily_api_key: str | None = Field(None, alias="TAVILY_API_KEY")
+
     env: Literal["dev", "prod"] = Field("dev", alias="ENV")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
 

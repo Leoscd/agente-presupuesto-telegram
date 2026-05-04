@@ -1,0 +1,29 @@
+{
+  "children": [
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Que es ClawFlows"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Libreria de 129+ automatizaciones para OpenClaw. Cada workflow activa skills en secuencias ready-to-use. Categorias: productivity, smart home, finance, health, communication, devops. Motor: Lobster (pipeline determinista, 0 tokens LLM)."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Workflows Potenciales para tu Negocio"}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "1. Morning Briefing - UTIL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Daily morning briefing con calendario, weather, y news summary. Para negocio: resumen de clases del dia, recordatorios de estudiantes, agenda. Link: https://clawflows.com/automations"}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "2. Daily Standup Generator - UTIL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Generate standup update from git commits, completed tasks, and calendar. Para negocio: seguimiento de progreso de cursos, tareas de estudiantes."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "3. Weekly Review Generator - UTIL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Generate weekly summary from completed tasks, commits, and calendar events. Para negocio: resumen semanal de estudiantes, progresso de cursos."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "4. Content Scheduler - UTIL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Plan and schedule content across platforms with reminders. Para negocio: publicacion automatica de Instagram/TikTok para cursos de IA arquitectura."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "5. Bill Due Reminder - MEDIA"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Track recurring bills and send reminders before due dates. Para negocio: recordar pagos de cursos, vencimientos."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "6. Email Triage - MEDIA"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Inbox Overview - Quickly spot what's urgent, needs follow-up, or done. Para negocio: filtrar consultas de potenciales estudiantes."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "7. Meeting Prep Brief - MEDIA"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Genera brief antes de reuniones. Para negocio: preparar contexto antes de clases particulares o consulting."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "8. Analytics Tracker - BAJA"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Run scheduled performance benchmarks and track trends. Para negocio: trackear metricas de estudiantes (avance en cursos)."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "9. Content Generator from AI - POTENCIAL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Generate multi-platform content from single source. Para negocio: crear contenido para Instagram/TikTok desde material de cursos."}}]}},
+    {"object": "block", "type": "heading_3", "heading_3": {"rich_text": [{"text": {"content": "10. Calendar Integration - POTENCIAL"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Read and write calendar events. Capacidad necesaria: calendar. Para negocio: sincronizar clases con Google Calendar."}}]}},
+    {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Resumen"}}]}},
+    {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "UTIL = lista para usar ahora. MEDIA = necesita configuracion. POTENCIAL = depende de skills adicionales."}}]}}
+  ]
+}
