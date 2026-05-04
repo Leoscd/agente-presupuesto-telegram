@@ -204,8 +204,8 @@ async def on_foto(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
         [
-            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
-            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+            InlineKeyboardButton("✅ Correcto", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Incorrecto", callback_data=f"fb_bad:{pid}"),
         ],
     ])
     await update.message.reply_text(texto_ok, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=kb)
@@ -333,8 +333,8 @@ async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
         [
-            InlineKeyboardButton("✅ Preciso", callback_data=f"fb_ok:{pid}"),
-            InlineKeyboardButton("❌ Corregir", callback_data=f"fb_bad:{pid}"),
+            InlineKeyboardButton("✅ Correcto", callback_data=f"fb_ok:{pid}"),
+            InlineKeyboardButton("❌ Incorrecto", callback_data=f"fb_bad:{pid}"),
         ],
     ])
     await update.message.reply_text(texto_ok, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=kb)
@@ -367,7 +367,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         db.guardar_feedback(pid, preciso=False)
         if q.message:
             await q.message.reply_text(
-                "Enviame el total real que calculaste (solo un número) o escribí una nota con /nota <id> <texto>."
+                "Gracias. ¿Qué estuvo mal? Podés escribirme el total correcto o describir el error."
             )
 
 
