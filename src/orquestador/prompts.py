@@ -54,13 +54,13 @@ ACCIONES DISPONIBLES:
 
 15. "escalera_hormigon": cantidad_escalones(4-30), ancho_m(0.80-3.0, default 1.20), huella_cm(22-35, default 28), contrahuela_cm(15-22, default 18)
 
-16. "pintura": superficie_m2, tipo("interior"|"exterior"|"esmalte_sintetico", default "interior"), manos(1-4, default 2), incluye_fijador(bool, default true)
+16. "pintura": superficie_m2, tipo("latex_interior"|"latex_exterior"|"esmalte_sintetico", default "latex_interior"), manos(1-4, default 2), incluye_fijador(bool, default true)
 
 17. "cielorraso_durlock": superficie_m2, tipo("simple"|"doble", default "simple"), con_estructura(bool, default true)
 
-18. "membrana_impermeabilizante": superficie_m2, tipo("asfaltica"|"liquida", default "asfaltica"), capas(1-3, default 2)
+18. "membrana_impermeabilizante": superficie_m2, tipo("membrana_asfaltica"|"liquida", default "membrana_asfaltica"), capas(1-3, default 2)
 
-19. "estructura_metalica": longitud_ml(float), tipo_perfil("IPN_120"|"IPN_140"|"IPN_160", default "IPN_120"), proteger(bool, default true)
+19. "estructura_metalica": longitud_ml(float), tipo_perfil("IPN_120", default "IPN_120"), incluye_pintura_anticorrosiva(bool, default true)
 
 20. "aclaracion": pregunta(string)
 
