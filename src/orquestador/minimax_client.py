@@ -257,68 +257,78 @@ async def parsear_imagen(image_bytes: bytes, materiales_disponibles: list[str], 
 
 async def parsear_modificacion(
     texto_usuario: str,
-    sesion_anterior: dict | None,
-    materiales_disponibles: list[str],
+    sesion_anterior: dict,
 ) -> RespuestaOrq:
-    """NLU para detectar si el mensaje es modificación o pedido nuevo."""
+    """Detecta si el mensaje modifica el presupuesto anterior o es un pedido nuevo.
+
+    Retorna RespuestaOrq con:
+    - accion=accion_original + parametros completos actualizados → recalcular
+    - accion="nuevo_presupuesto" → caer al flujo NLU estándar
+    """
     import re
-    from src.orquestador.prompts import SYSTEM_PROMPT_MODIFICACION, _MODIF_RE, _reset_RE
+    from src.orquestador.prompts import SYSTEM_PROMPT_MODIFICACION, _MODIF_RE, _RESET_RE
 
-    if sesion_anterior is None:
+    accion_anterior = sesion_anterior["accion"]
+    params_anteriores = sesion_anterior["params"]
+
+    if bool(re.search(_RESET_RE, texto_usuario, re.IGNORECASE)):
         return RespuestaOrq(
-            accion="nuevo_presupuesto", parametros={}, confianza=1.0, raw={}
+            accion="nuevo_presupuesto", parametros={}, confianza=1.0, raw={},
+            tokens_input=0, tokens_output=0, usd_estimado=0.0, latencia_ms=0,
         )
 
-    modificacion_detectada = bool(re.search(_MODIF_RE, texto_usuario, re.IGNORECASE))
-    nuevo_pedido_detectado = bool(re.search(_reset_RE, texto_usuario, re.IGNORECASE))
+    contexto_anterior = json.dumps(
+        {"accion": accion_anterior, "parametros": params_anteriores},
+        ensure_ascii=False,
+    )
+    prompt = SYSTEM_PROMPT_MODIFICACION.format(
+        contexto_anterior=contexto_anterior,
+        pedido_actual=texto_usuario.strip(),
+    )
 
-    if nuevo_pedido_detectado:
+    t0 = time.perf_counter()
+    try:
+        resp = await _cliente().chat.completions.create(
+            model=settings.minimax_model,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=500,
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("parsear_modificacion falló: %s — cayendo a NLU estándar", e)
         return RespuestaOrq(
-            accion="nuevo_presupuesto", parametros={}, confianza=1.0, raw={"trigger": "reset_regex"}
+            accion="nuevo_presupuesto", parametros={}, confianza=0.0, raw={"error": str(e)},
+            tokens_input=0, tokens_output=0, usd_estimado=0.0, latencia_ms=0,
         )
 
-    if modificacion_detectada:
-        t0 = time.perf_counter()
-        contexto = json.dumps(sesion_anterior, ensure_ascii=False)
-        user_msg = SYSTEM_PROMPT_MODIFICACION.format(
-            contexto_anterior=contexto, pedido_actual=texto_usuario.strip()
-        )
+    latencia_ms = int((time.perf_counter() - t0) * 1000)
+    tin = resp.usage.prompt_tokens
+    tout = resp.usage.completion_tokens
+    usd = (tin * 0.000_001 + tout * 0.000_002)
+    db.acumular_tokens(tin, tout, usd)
 
-        try:
-            resp = await _cliente().chat.completions.create(
-                model=settings.minimax_model,
-                messages=[
-                    {"role": "system", "content": user_msg},
-                    {"role": "user", "content": texto_usuario.strip()},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,
-                max_tokens=500,
-            )
-        except Exception as e:
-            log.warning("parsear_modificacion failed: %s", e)
-            return RespuestaOrq(
-                accion="modificacion", parametros={}, confianza=0.0, raw={"error": str(e)}
-            )
+    content = _strip_think(resp.choices[0].message.content or "{}")
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError:
+        raw = {"accion": "nuevo_presupuesto"}
 
-        latencia_ms = int((time.perf_counter() - t0) * 1000)
-        content = _strip_think(resp.choices[0].message.content or "{}")
-        try:
-            raw = json.loads(content)
-        except json.JSONDecodeError:
-            raw = {"accion": "modificacion", "parametros": {}, "confianza": 0.0}
-
+    if raw.get("accion") == "nuevo_presupuesto":
         return RespuestaOrq(
-            accion=str(raw.get("accion", "modificacion")),
-            parametros=dict(raw.get("parametros", {})),
-            confianza=float(raw.get("confianza", 0.0)),
-            raw=raw,
-            latencia_ms=latencia_ms,
+            accion="nuevo_presupuesto", parametros={}, confianza=float(raw.get("confianza", 0.9)),
+            raw=raw, tokens_input=tin, tokens_output=tout, usd_estimado=usd, latencia_ms=latencia_ms,
         )
 
+    # Modificación: MiniMax devuelve el delta — lo mergeamos sobre los params anteriores
+    params_actualizados = {**params_anteriores, **dict(raw.get("parametros", {}))}
     return RespuestaOrq(
-        accion="mismo_presupuesto",
-        parametros=sesion_anterior.get("params", {}),
-        confianza=1.0,
-        raw={"sesion": sesion_anterior},
+        accion=accion_anterior,
+        parametros=params_actualizados,
+        confianza=float(raw.get("confianza", 0.9)),
+        raw=raw,
+        tokens_input=tin,
+        tokens_output=tout,
+        usd_estimado=usd,
+        latencia_ms=latencia_ms,
     )

@@ -251,6 +251,10 @@ async def _procesar_actualizacion_precio(update: Update, resp, empresa_id: str, 
 
 
 async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    import re
+    from src.orquestador.prompts import _RESET_RE
+    from src.persistencia.db import guardar_sesion, obtener_sesion, limpiar_sesion
+
     if update.effective_user is None or update.message is None or update.message.text is None:
         return
 
@@ -265,6 +269,54 @@ async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     datos = cargar_empresa(empresa_id)
 
+    # --- Detección de sesión activa ---
+    sesion = obtener_sesion(user_id)
+
+    if sesion and re.search(_RESET_RE, texto, re.IGNORECASE):
+        limpiar_sesion(user_id)
+        await update.message.reply_text("🆕 Listo, empezamos de cero. ¿Qué necesitás presupuestar?")
+        return
+
+    if sesion and sesion["accion"] not in ("", "__imagenes__"):
+        await update.message.chat.send_action(action="typing")
+        try:
+            resp = await minimax_client.parsear_modificacion(texto, sesion)
+        except Exception as e:  # noqa: BLE001
+            log.exception("Error parsear_modificacion")
+            resp = None
+
+        if resp and resp.accion != "nuevo_presupuesto":
+            # Es una modificación — recalcular con los params actualizados
+            prefijo = "✏️ *Presupuesto actualizado:*\n\n"
+            try:
+                resultado = router.despachar(resp.accion, resp.parametros, empresa_id)
+            except (router.AccionDesconocida, ValueError) as e:
+                await update.message.reply_text(f"No pude recalcular la modificación: {e}")
+                return
+
+            pid, id_corto = db.guardar_presupuesto(
+                empresa_id=empresa_id, telegram_user_id=user_id, input_texto=texto,
+                minimax_json=resp.raw, minimax_confianza=resp.confianza, resultado=resultado,
+                tokens_input=resp.tokens_input, tokens_output=resp.tokens_output,
+                usd_estimado=resp.usd_estimado, latencia_ms=resp.latencia_ms,
+            )
+            guardar_sesion(user_id, empresa_id, resp.accion, resp.parametros, pid)
+
+            texto_ok = formatter.formatear_presupuesto(resultado, id_corto)
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📄 Generar PDF", callback_data=f"pdf:{pid}")],
+                [
+                    InlineKeyboardButton("✅ Correcto", callback_data=f"fb_ok:{pid}"),
+                    InlineKeyboardButton("❌ Incorrecto", callback_data=f"fb_bad:{pid}"),
+                ],
+            ])
+            await update.message.reply_text(
+                prefijo + texto_ok, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=kb
+            )
+            return
+        # Si resp es None o accion=="nuevo_presupuesto" → caer al flujo NLU estándar
+
+    # --- Flujo NLU estándar ---
     # 1) NLU con MiniMax
     await update.message.chat.send_action(action="typing")
     try:
@@ -327,6 +379,9 @@ async def on_mensaje(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         usd_estimado=resp.usd_estimado,
         latencia_ms=resp.latencia_ms,
     )
+
+    # Guardar sesión para permitir modificaciones en el próximo mensaje
+    guardar_sesion(user_id, empresa_id, resp.accion, resp.parametros, pid)
 
     # 6) Responder
     texto_ok = formatter.formatear_presupuesto(resultado, id_corto)
