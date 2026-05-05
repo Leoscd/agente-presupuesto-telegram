@@ -16,6 +16,11 @@ from src.datos.validador import materiales_faltantes
 from src.rubros.base import Partida, ResultadoPresupuesto, registrar
 
 
+# kg/barra por diámetro (barra 12m)
+_KG_BARRA = {"8mm": Decimal("4.74"), "10mm": Decimal("7.40"), "12mm": Decimal("10.65")}
+_CODIGO_HIERRO = {"8mm": "HIERRO_8", "10mm": "HIERRO_10", "12mm": "HIERRO_12"}
+
+
 class ParamsFundacion(BaseModel):
     tipo: Literal["zapata_aislada", "viga_fundacion"] = "zapata_aislada"
     largo_m: PositiveFloat = Field(0.80, description="Largo Zapata aislada")
@@ -24,6 +29,7 @@ class ParamsFundacion(BaseModel):
     cantidad: int = Field(1, ge=1, le=200, description="Cantidad de zaptas")
     longitud_ml: float = Field(0.0, ge=0.0, description="Longitud viga fundacion")
     base_cm: int = Field(40, ge=25, le=80, description="Base viga fundacion cm")
+    tipo_hierro: Literal["8mm", "10mm", "12mm"] = Field("8mm", description="Diámetro del hierro de la parrilla")
 
 
 def _q(v: Decimal) -> Decimal:
@@ -37,12 +43,13 @@ class _CalcFundacion:
     def calcular(self, params: ParamsFundacion, empresa_id: str) -> ResultadoPresupuesto:
         datos = cargar_empresa(empresa_id)
 
+        cod_hierro = _CODIGO_HIERRO[params.tipo_hierro]
         codigos_usados = [
             "CEMENTO_PORTLAND",
             "ARENA_GRUESA",
             "PIEDRA_6_12",
             "PLASTIFICANTE_HERCAL",
-            "HIERRO_8",
+            cod_hierro,
             "ALAMBRE_ATADO",
         ]
         faltantes = materiales_faltantes(datos, codigos_usados)
@@ -73,9 +80,9 @@ class _CalcFundacion:
         piedra = _q(volumen_m3 * Decimal("0.65"))
         plast = Decimal(max(1, ceil(volumen_m3 / Decimal("5"))))
 
-        # Hierro 8mm: coeficiente 80 kg/m³
-        # Barra 8mm 12m pesa: 0.395 kg/m * 12m = 4.74 kg/barra
-        cant_barras_8 = Decimal(ceil(float(volumen_m3) * 80 / 4.74))
+        # Hierro parrilla: coeficiente 80 kg/m³, cantidad de barras según diámetro
+        kg_barra = _KG_BARRA[params.tipo_hierro]
+        cant_barras_hierro = Decimal(ceil(float(volumen_m3 * Decimal("80")) / float(kg_barra)))
 
         # Alambre: 0.5 kg/m3
         cant_alambre = _q(volumen_m3 * Decimal("0.5"))
@@ -90,7 +97,7 @@ class _CalcFundacion:
         p_arena = precio_material(datos, "ARENA_GRUESA")
         p_piedra = precio_material(datos, "PIEDRA_6_12")
         p_plast = precio_material(datos, "PLASTIFICANTE_HERCAL")
-        p_hierro8 = precio_material(datos, "HIERRO_8")
+        p_hierro8 = precio_material(datos, cod_hierro)
         p_alambre = precio_material(datos, "ALAMBRE_ATADO")
 
         # Partidas (7 sin tablones)
@@ -128,11 +135,11 @@ class _CalcFundacion:
                 categoria="material",
             ),
             Partida(
-                concepto="Hierro 8mm",
-                cantidad=cant_barras_8,
+                concepto=f"Hierro {params.tipo_hierro}",
+                cantidad=cant_barras_hierro,
                 unidad="u",
                 precio_unitario=p_hierro8,
-                subtotal=_q(cant_barras_8 * p_hierro8),
+                subtotal=_q(cant_barras_hierro * p_hierro8),
                 categoria="material",
             ),
             Partida(

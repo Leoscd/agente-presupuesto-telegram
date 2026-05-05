@@ -50,7 +50,7 @@ ACCIONES DISPONIBLES:
 
 13. "viga_encadenado": longitud_ml(float), base_cm(15-50, default 20), alto_cm(20-60, default 30), tipo("encadenado"|"viga_dintel", default "encadenado")
 
-14. "fundacion": tipo("zapata_aislada"|"viga_fundacion", default "zapata_aislada"), largo_m(float, default 0.80), ancho_m(float, default 0.80), alto_m(float, default 0.50), cantidad(1-200, default 1), longitud_ml(float, default 0), base_cm(25-80, default 40)
+14. "fundacion": tipo("zapata_aislada"|"viga_fundacion", default "zapata_aislada"), largo_m(float, default 0.80), ancho_m(float, default 0.80), alto_m(float, default 0.50), cantidad(1-200, default 1), longitud_ml(float, default 0), base_cm(25-80, default 40), tipo_hierro("8mm"|"10mm"|"12mm", default "8mm")
 
 15. "escalera_hormigon": cantidad_escalones(4-30), ancho_m(0.80-3.0, default 1.20), huella_cm(22-35, default 28), contrahuela_cm(15-22, default 18)
 
